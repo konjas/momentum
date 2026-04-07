@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Momentum ETF · PLN</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07090f;--bg2:#0d1117;--bg3:#131923;--bg4:#1a2332;
+  --border:#1e2a38;--border2:#2a3a4a;
+  --text:#c9d6e3;--muted:#4a6070;--dim:#2a3a4a;
+  --green:#00e5a0;--gdim:#003d2b;
+  --red:#ff4757;--rdim:#3d0011;
+  --amber:#f4b942;--blue:#4d9fff;--purple:#9b7cf8;--gold:#ffd166;
+  --mono:'IBM Plex Mono',monospace;--sans:'DM Sans',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{font-size:12px;overflow-x:auto;min-width:1200px;background:var(--bg);color:var(--text);font-family:var(--sans)}
+body::before{content:'';position:fixed;inset:0;z-index:9999;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.06) 2px,rgba(0,0,0,.06) 4px)}
+
+#sticky-top{position:sticky;top:0;z-index:200;background:var(--bg2)}
+header{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:48px;border-bottom:1px solid var(--border)}
+.logo{display:flex;align-items:center;gap:9px}
+.logo-mark{width:26px;height:26px;background:linear-gradient(135deg,var(--green),#007a50);border-radius:5px;
+  display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:600;font-size:12px;color:#000}
+.logo-text{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.08em}
+.logo-text b{color:var(--green)}
+.hdr-right{display:flex;align-items:center;gap:10px}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--dim)}
+.dot.ok{background:var(--green);box-shadow:0 0 5px var(--green)}
+.dot.running{background:var(--amber);box-shadow:0 0 5px var(--amber);animation:pulse .8s infinite}
+.dot.error{background:var(--red)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.ts{font-family:var(--mono);font-size:9px;color:var(--muted)}
+.btn-hdr{display:flex;align-items:center;gap:6px;padding:5px 12px;background:transparent;
+  border:1px solid var(--border2);border-radius:4px;color:var(--text);font-family:var(--mono);
+  font-size:10px;cursor:pointer;transition:all .2s;white-space:nowrap}
+.btn-hdr:hover{border-color:var(--green);color:var(--green);background:rgba(0,229,160,.05)}
+.btn-hdr:disabled{opacity:.4;cursor:not-allowed}
+.btn-hdr.spinning .sp{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.sp{display:inline-block}
+
+.tabs{display:flex;border-bottom:1px solid var(--border);padding:0 20px}
+.tab{padding:8px 16px;font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted);border-bottom:2px solid transparent;
+  cursor:pointer;transition:all .15s;margin-bottom:-1px}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--green);border-bottom-color:var(--green)}
+.tbadge{display:inline-block;background:rgba(244,185,66,.15);color:var(--amber);font-size:8px;padding:1px 4px;border-radius:2px;margin-left:4px}
+
+.toolbar{display:flex;align-items:center;gap:12px;padding:8px 20px;border-bottom:1px solid var(--border)}
+.tl-lbl{font-size:8px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.fg{display:flex;gap:4px;flex-wrap:wrap}
+.ftog{padding:3px 9px;border:1px solid var(--border);border-radius:3px;background:transparent;
+  color:var(--muted);font-family:var(--mono);font-size:9px;cursor:pointer;transition:all .15s}
+.ftog:hover{border-color:var(--border2);color:var(--text)}
+.ftog.active{border-color:var(--blue);color:var(--blue);background:rgba(77,159,255,.07)}
+.ftog.clr{border-color:var(--border);color:var(--muted)}
+.ftog.clr:hover{border-color:var(--red);color:var(--red)}
+.spacer{flex:1}
+.cnt{font-family:var(--mono);font-size:9px;color:var(--muted)}
+.cnt strong{color:var(--text)}
+
+.table-wrap{padding:0 20px 40px}
+table{width:100%;border-collapse:collapse;min-width:1160px}
+thead th{padding:8px 8px 6px;text-align:left;font-family:var(--mono);font-size:8px;font-weight:600;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);
+  white-space:nowrap;cursor:pointer;user-select:none;
+  position:sticky;top:var(--thead-top,0);background:var(--bg);z-index:100}
+thead th:hover{color:var(--text)}
+thead th.sorted{color:var(--blue)} thead th.sorted::after{content:' ↓'} thead th.sorted.asc::after{content:' ↑'}
+thead th.r,tbody td.r{text-align:right} thead th.c,tbody td.c{text-align:center} thead th.ns{cursor:default}
+tbody tr{border-bottom:1px solid rgba(30,42,56,.5);transition:background .1s}
+tbody tr:hover{background:rgba(255,255,255,.02)}
+tbody tr.rOWNED{background:rgba(255,209,102,.05);border-left:2px solid rgba(255,209,102,.4)}
+tbody td{padding:7px 8px;font-family:var(--mono);font-size:10px;color:var(--text);white-space:nowrap}
+
+tbody tr.gd td{padding:0;border-bottom:none}
+.gd-inner{background:rgba(155,124,248,.04);border-left:2px solid rgba(155,124,248,.25);margin-left:28px}
+.gd-inner table{min-width:unset;width:100%}
+.gd-inner thead th{position:static;background:transparent;font-size:7px;padding:3px 8px;border-bottom:1px solid rgba(30,42,56,.4)}
+.gd-inner tbody td{padding:4px 8px;font-size:9px;border-bottom:1px solid rgba(30,42,56,.25)}
+.gd-inner tbody tr:last-child td{border-bottom:none}
+.gd-inner tr.rOWNED{background:rgba(255,209,102,.05);border-left:2px solid rgba(255,209,102,.3)}
+
+.etf-cell{display:flex;flex-direction:column;gap:2px}
+.etf-ticker-row{display:flex;align-items:center;gap:4px}
+.ticker{font-size:10px;font-weight:600;color:var(--blue)}
+.etf-name{color:var(--text);font-size:10px;white-space:normal;word-break:break-word;max-width:280px;line-height:1.3}
+.owned-star{color:var(--gold);font-size:10px}
+.gbadge{display:inline-block;font-size:8px;padding:0 4px;border-radius:2px;
+  background:rgba(155,124,248,.15);color:var(--purple);border:1px solid rgba(155,124,248,.3);
+  cursor:pointer;user-select:none;transition:all .12s;vertical-align:middle;margin-left:2px}
+.gbadge:hover{background:rgba(155,124,248,.3)} .gbadge.open{background:rgba(155,124,248,.3);color:#fff}
+
+.pct{font-variant-numeric:tabular-nums}
+.pp{color:var(--green)} .pn{color:var(--red)} .p0{color:var(--muted)}
+.mc{display:flex;align-items:center;gap:6px}
+.mv{width:46px;text-align:right;font-weight:600}
+.mbar{flex:1;height:2px;background:var(--dim);border-radius:1px;overflow:hidden;min-width:30px}
+.mfill{height:100%;border-radius:1px} .mfill.pp{background:var(--green)} .mfill.pn{background:var(--red)}
+.cur{display:inline-block;padding:1px 4px;border:1px solid var(--border2);border-radius:2px;font-size:8px;color:var(--muted)}
+.nd{color:var(--dim)}
+
+.abtn{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;
+  border-radius:3px;font-size:10px;background:transparent;border:1px solid transparent;
+  color:var(--muted);cursor:pointer;transition:all .12s;padding:0;line-height:1;vertical-align:middle}
+.abtn:hover{border-color:var(--border2);color:var(--text);background:var(--bg4)}
+.abtn.ign:hover{border-color:rgba(255,71,87,.4);color:var(--red);background:rgba(255,71,87,.08)}
+.abtn.res:hover{border-color:rgba(0,229,160,.4);color:var(--green);background:rgba(0,229,160,.08)}
+.abtn.own:hover,.abtn.own.active{border-color:rgba(255,209,102,.4);color:var(--gold);background:rgba(255,209,102,.08)}
+.abtn.own.active{color:var(--gold)}
+.abtn.rep:hover{border-color:rgba(155,124,248,.4);color:var(--purple);background:rgba(155,124,248,.08)}
+
+.empty{padding:60px 20px;text-align:center}
+.empty .ei{font-size:36px;margin-bottom:12px}
+.empty .et{font-family:var(--mono);font-size:13px;color:var(--text);margin-bottom:6px}
+.empty .es{font-size:11px;color:var(--muted)}
+
+#toast{position:fixed;bottom:20px;right:20px;padding:8px 14px;background:var(--bg3);
+  border:1px solid var(--border2);border-radius:5px;font-family:var(--mono);font-size:10px;
+  color:var(--text);opacity:0;pointer-events:none;transition:opacity .25s;z-index:1000}
+#toast.show{opacity:1} #toast.ok{border-color:var(--green);color:var(--green)}
+#toast.err{border-color:var(--red);color:var(--red)} #toast.info{border-color:var(--amber);color:var(--amber)}
+#toast.gold{border-color:var(--gold);color:var(--gold)}
+#prog{height:2px;background:linear-gradient(90deg,var(--green),var(--blue));width:0;
+  transition:width .3s;position:fixed;top:0;left:0;z-index:9999}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--dim);border-radius:3px}
+</style>
+</head>
+<body>
+<div id="prog"></div>
+<div id="toast"></div>
+
+<div id="sticky-top">
+<header>
+  <div class="logo"><div class="logo-mark">M</div><span class="logo-text">MOMENTUM<b>·</b>ETF</span></div>
+  <div class="hdr-right">
+    <div class="dot" id="dot"></div>
+    <span class="ts" id="ts">—</span>
+    <button class="btn-hdr" id="btnRef"><span class="sp">⟳</span> Aktualizuj</button>
+  </div>
+</header>
+<div class="tabs">
+  <div class="tab active" data-tab="ranking">Ranking</div>
+  <div class="tab" data-tab="owned">Posiadane <span class="tbadge" id="ownCnt">0</span></div>
+  <div class="tab" data-tab="ignored">Ignorowane <span class="tbadge" id="ignCnt">0</span></div>
+</div>
+<div id="rankCtrl">
+  <div class="toolbar">
+    <span class="tl-lbl">Filtruj:</span>
+    <div class="fg" id="fgMain"></div>
+    <div class="spacer"></div>
+    <span class="cnt">Wyświetlono: <strong id="rowCnt">—</strong></span>
+  </div>
+</div>
+</div>
+
+<div id="pageRank">
+  <div id="emptyRank" class="empty" style="display:none">
+    <div class="ei">📡</div><div class="et">Brak danych</div><div class="es">Kliknij „Aktualizuj"</div>
+  </div>
+  <div class="table-wrap">
+    <table id="tbl">
+      <thead><tr>
+        <th data-col="rank_pos" class="sorted">#</th>
+        <th data-col="name">ETF</th>
+        <th data-col="isin">ISIN</th>
+        <th data-col="dividends" class="c">Div</th>
+        <th data-col="strategy" class="c">Strat</th>
+        <th data-col="currency" class="c">Waluta</th>
+        <th data-col="ms_adj_val" class="r">MS_adj</th>
+        <th data-col="ms_raw_pct" class="r">MS%</th>
+        <th data-col="r1m_pln_pct" class="r">1M PLN</th>
+        <th data-col="r3m_pln_pct" class="r">3M PLN</th>
+        <th data-col="r6m_pln_pct" class="r">6M PLN</th>
+        <th data-col="r12m_pln_pct" class="r">12M PLN</th>
+        <th data-col="r12m_skip1m_pln_pct" class="r">12M-1M</th>
+        <th data-col="mdd12m_pct" class="r">MDD%</th>
+        <th data-col="vol_pct" class="r">Vol%</th>
+        <th data-col="ter" class="r">TER%</th>
+        <th data-col="aum_mln" class="r">AuM mln€</th>
+        <th class="ns c">Akcje</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="pageOwn" style="display:none">
+  <div style="padding:16px 20px 10px;font-family:var(--mono);font-size:10px;color:var(--muted);
+    border-bottom:1px solid var(--border)">Posiadane ETFy: <strong id="ownTotal" style="color:var(--text)">0</strong></div>
+  <div id="emptyOwn" class="empty" style="display:none">
+    <div class="ei">⭐</div><div class="et">Brak posiadanych</div><div class="es">Kliknij ★ przy ETFie</div>
+  </div>
+  <div class="table-wrap" id="ownWrap">
+    <table id="ownTbl">
+      <thead><tr>
+        <th data-col="rank_pos">#</th>
+        <th data-col="name">ETF</th>
+        <th data-col="isin">ISIN</th>
+        <th data-col="dividends" class="c">Div</th>
+        <th data-col="strategy" class="c">Strat</th>
+        <th data-col="currency" class="c">Waluta</th>
+        <th data-col="ms_adj_val" class="r">MS_adj</th>
+        <th data-col="ms_raw_pct" class="r">MS%</th>
+        <th data-col="r1m_pln_pct" class="r">1M PLN</th>
+        <th data-col="r3m_pln_pct" class="r">3M PLN</th>
+        <th data-col="r6m_pln_pct" class="r">6M PLN</th>
+        <th data-col="r12m_pln_pct" class="r">12M PLN</th>
+        <th data-col="r12m_skip1m_pln_pct" class="r">12M-1M</th>
+        <th data-col="mdd12m_pct" class="r">MDD%</th>
+        <th data-col="vol_pct" class="r">Vol%</th>
+        <th data-col="ter" class="r">TER%</th>
+        <th data-col="aum_mln" class="r">AuM mln€</th>
+        <th data-col="bought_at">Dodane</th>
+        <th class="ns c">Akcje</th>
+      </tr></thead>
+      <tbody id="ownBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="pageIgn" style="display:none">
+  <div style="padding:16px 20px 10px;font-family:var(--mono);font-size:10px;color:var(--muted);
+    border-bottom:1px solid var(--border)">Ignorowane ETFy: <strong id="ignTotal" style="color:var(--text)">0</strong></div>
+  <div id="emptyIgn" class="empty" style="display:none">
+    <div class="ei">✅</div><div class="et">Brak ignorowanych</div><div class="es">Kliknij ⊘ przy ETFie</div>
+  </div>
+  <div class="table-wrap" id="ignWrap">
+    <table id="ignTbl">
+      <thead><tr>
+        <th data-col="rank_pos">#</th>
+        <th data-col="name">ETF</th>
+        <th data-col="isin">ISIN</th>
+        <th data-col="dividends" class="c">Div</th>
+        <th data-col="strategy" class="c">Strat</th>
+        <th data-col="currency" class="c">Waluta</th>
+        <th data-col="ms_adj_val" class="r">MS_adj</th>
+        <th data-col="ms_raw_pct" class="r">MS%</th>
+        <th data-col="r1m_pln_pct" class="r">1M PLN</th>
+        <th data-col="r3m_pln_pct" class="r">3M PLN</th>
+        <th data-col="r6m_pln_pct" class="r">6M PLN</th>
+        <th data-col="r12m_pln_pct" class="r">12M PLN</th>
+        <th data-col="r12m_skip1m_pln_pct" class="r">12M-1M</th>
+        <th data-col="mdd12m_pct" class="r">MDD%</th>
+        <th data-col="vol_pct" class="r">Vol%</th>
+        <th data-col="ter" class="r">TER%</th>
+        <th data-col="aum_mln" class="r">AuM mln€</th>
+        <th data-col="ignored_at">Ignorowany od</th>
+        <th class="ns c">Akcje</th>
+      </tr></thead>
+      <tbody id="ignBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+let allData    = [];
+let ownData    = [];
+let ignData    = [];
+let meta       = {};
+let sortCol    = 'rank_pos';
+let sortDir    = 1;
+const grpSort  = new Map(); // repIsin → {col, dir}
+let ownSort    = {col:'ms_adj_val', dir:-1};
+let ignSort    = {col:'ms_adj_val', dir:-1};
+const STR_COLS = new Set(['name','ticker','currency','dividends','strategy','isin']);
+let activeFilters = new Set(); // kategorie grup (przed ':')
+let activeTab  = 'ranking';
+let pollTimer  = null;
+const openGroups = new Map();
+
+const $ = id => document.getElementById(id);
+
+function pct(v, dec=2){
+  if(v==null) return '<span class="nd">—</span>';
+  const cls = v>0?'pp':v<0?'pn':'p0';
+  return `<span class="pct ${cls}">${v>0?'+':''}${v.toFixed(dec)}%</span>`;
+}
+function nd(v, suf='', dec=2){ return v==null ? '<span class="nd">—</span>' : v.toFixed(dec)+suf; }
+function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function toast(msg, type='ok', ms=3000){
+  const el=$('toast'); el.textContent=msg; el.className=`show ${type}`;
+  clearTimeout(el._t); el._t=setTimeout(()=>{ el.className=''; }, ms);
+}
+function prog(p){ $('prog').style.width=p+'%'; if(p>=100) setTimeout(()=>{ $('prog').style.width='0'; },400); }
+function justetfUrl(isin){ return `https://www.justetf.com/en/etf-profile.html?isin=${isin}`; }
+function atlasUrl(isin){   return `https://atlasetf.pl/etf-details/${isin}/availability`; }
+
+const ro = new ResizeObserver(()=>{
+  document.documentElement.style.setProperty('--thead-top', $('sticky-top').offsetHeight+'px');
+});
+ro.observe($('sticky-top'));
+document.fonts.ready.then(()=>{
+  document.documentElement.style.setProperty('--thead-top', $('sticky-top').offsetHeight+'px');
+});
+
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click',()=>{
+    activeTab=t.dataset.tab;
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    const isR=activeTab==='ranking';
+    $('pageRank').style.display=isR?'':'none';
+    $('pageOwn').style.display=activeTab==='owned'?'':'none';
+    $('pageIgn').style.display=activeTab==='ignored'?'':'none';
+    $('rankCtrl').style.display=isR?'':'none';
+    if(activeTab==='ignored') loadIgnPage();
+    if(activeTab==='owned')   loadOwnPage();
+  });
+});
+
+function stratBadge(s){
+  if(!s) return '<span class="nd">—</span>';
+  const lbl=s==='long-only'?'L':s==='active'?'A':s==='leveraged'?'Lev':s[0].toUpperCase();
+  const col=s==='long-only'?'var(--blue)':s==='active'?'var(--purple)':'var(--amber)';
+  return `<span style="font-family:var(--mono);font-size:8px;padding:1px 4px;border-radius:2px;
+    border:1px solid ${col}22;color:${col};background:${col}11">${lbl}</span>`;
+}
+function divBadge(d){
+  if(!d) return '<span class="nd">—</span>';
+  const isAcc=d.toLowerCase().includes('acc');
+  const col=isAcc?'var(--green)':'var(--amber)';
+  return `<span style="font-family:var(--mono);font-size:8px;padding:1px 4px;border-radius:2px;
+    border:1px solid ${col}33;color:${col}">${isAcc?'A':'D'}</span>`;
+}
+function rowCls(r){
+  return r.owned ? 'rOWNED' : '';
+}
+function msBar(v,mx){
+  if(v==null) return '<span class="nd">—</span>';
+  const p=Math.min(100,Math.abs(v)/mx*100), cls=v>=0?'pp':'pn';
+  return `<div class="mc"><span class="mv pct ${cls}">${v.toFixed(3)}</span>
+    <div class="mbar"><div class="mfill ${cls}" style="width:${p}%"></div></div></div>`;
+}
+function etfCell(r){
+  const star=r.owned?'<span class="owned-star">★</span>':'';
+  const isGrp=r.group_size>1;
+  const gb=isGrp?`<span class="gbadge${openGroups.has(r.isin)?' open':''}"
+    onclick="toggleGrp(event,'${encodeURIComponent(r.group_key||'')}','${r.isin}')"
+    title="${r.group_size-1} alternatyw w grupie">+${r.group_size-1}</span>`:'';
+  const grpLine=isGrp?`<div style="color:var(--muted);font-size:8px;margin-top:1px">${escHtml(r.group_key||'')}</div>`:'';
+  return `<div class="etf-cell">
+    <div class="etf-ticker-row">${star}<span class="ticker">${r.ticker||'—'}</span>${gb}</div>
+    <div class="etf-name">${escHtml(r.name||'—')}</div>${grpLine}
+  </div>`;
+}
+function actionBtns(r){
+  const ownCls=r.owned?' active':'';
+  const ignBtn=r.ignored
+    ?`<button class="abtn res" title="Przywróć" onclick="restoreEtf('${r.isin}')">↩</button>`
+    :`<button class="abtn ign" title="Ignoruj"  onclick="ignoreEtf('${r.isin}')">⊘</button>`;
+  const pinBtn=r.is_override
+    ?`<button class="abtn" title="Zresetuj przypięcie — wróć do domyślnego repa grupy"
+        onclick="clearRep('${encodeURIComponent(r.group_key||'')}','${r.isin}')"
+        style="font-size:9px;color:var(--purple);border-color:rgba(155,124,248,.3)"
+        onmouseover="this.style.color='var(--red)';this.style.borderColor='rgba(255,71,87,.4)'"
+        onmouseout="this.style.color='var(--purple)';this.style.borderColor='rgba(155,124,248,.3)'">📌</button>`
+    :'';
+  return `<span style="display:flex;gap:3px;justify-content:center;align-items:center">
+    <a class="abtn" href="${justetfUrl(r.isin)}" target="_blank" title="JustETF" onclick="event.stopPropagation()" style="font-size:9px;padding:2px 4px;border:1px solid var(--border);border-radius:3px;color:var(--muted);text-decoration:none;background:transparent" onmouseover="this.style.color='var(--blue)';this.style.borderColor='rgba(77,159,255,.4)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">J</a>
+    <a class="abtn" href="${atlasUrl(r.isin)}" target="_blank" title="AtlasETF" onclick="event.stopPropagation()"
+       style="font-size:9px;padding:2px 4px;border:1px solid var(--border);border-radius:3px;
+         color:var(--muted);text-decoration:none;background:transparent"
+       onmouseover="this.style.color='var(--blue)';this.style.borderColor='rgba(77,159,255,.4)'"
+       onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">A</a>
+    <button class="abtn own${ownCls}" title="${r.owned?'Usuń z posiadanych':'Oznacz jako posiadane'}"
+      onclick="toggleOwned('${r.isin}',${!!r.owned})">★</button>
+    ${pinBtn}${ignBtn}
+  </span>`;
+}
+
+function groupCategory(groupKey){
+  if(!groupKey) return null;
+  const idx = groupKey.indexOf(':');
+  return idx > 0 ? groupKey.slice(0, idx).trim() : null;
+}
+
+function buildGroupFilters(){
+  const cats = new Set();
+  for(const r of allData){
+    const c = groupCategory(r.group_key);
+    if(c) cats.add(c);
+  }
+  const fg = $('fgMain');
+  const sorted = [...cats].sort();
+  let html = `<button class="ftog clr" id="btnClrFilters" title="Wyczyść filtry">✕</button>`;
+  for(const cat of sorted){
+    const active = activeFilters.has(cat) ? ' active' : '';
+    html += `<button class="ftog${active}" data-cat="${escHtml(cat)}">${escHtml(cat)}</button>`;
+  }
+  fg.innerHTML = html;
+  $('btnClrFilters').addEventListener('click', ()=>{ activeFilters.clear(); renderTable(); buildGroupFilters(); });
+  fg.querySelectorAll('.ftog[data-cat]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const cat = btn.dataset.cat;
+      if(activeFilters.has(cat)) activeFilters.delete(cat);
+      else activeFilters.add(cat);
+      btn.classList.toggle('active', activeFilters.has(cat));
+      renderTable();
+    });
+  });
+}
+
+function getVisible(){
+  if(!activeFilters.size) return allData;
+  return allData.filter(r=>{
+    const c = groupCategory(r.group_key);
+    return c && activeFilters.has(c);
+  });
+}
+
+function sortRows(rows, col, dir){
+  return [...rows].sort((a,b)=>{
+    let va=a[col], vb=b[col];
+    if(va==null) return 1; if(vb==null) return -1;
+    if(STR_COLS.has(col)) return va.localeCompare(vb)*dir;
+    return (va-vb)*dir;
+  });
+}
+// Default sort direction: asc for string cols, desc for numeric
+function defaultDir(col){ return STR_COLS.has(col) ? 1 : -1; }
+
+// Attach sort handler to a <thead> inside a given table element
+function attachSort(table, getSort, setSort, onSort){
+  table.querySelector('thead').addEventListener('click', e=>{
+    const th=e.target.closest('th[data-col]'); if(!th) return;
+    const col=th.dataset.col;
+    const cur=getSort();
+    const dir=cur.col===col ? cur.dir*-1 : defaultDir(col);
+    setSort({col, dir});
+    table.querySelectorAll('thead th').forEach(h=>h.classList.remove('sorted','asc'));
+    th.classList.add('sorted'); if(dir===1) th.classList.add('asc');
+    onSort();
+  });
+}
+// Mark initial sorted column in a thead
+function markSort(table, col, dir){
+  table.querySelectorAll('thead th').forEach(h=>h.classList.remove('sorted','asc'));
+  const th=table.querySelector(`thead th[data-col="${col}"]`);
+  if(th){ th.classList.add('sorted'); if(dir===1) th.classList.add('asc'); }
+}
+
+// ── Shared column renderer ────────────────────────────────────────────────────
+// Returns all data tds in canonical order (no #, no ETF cell, no actions — caller adds those)
+function renderCols(r){
+  const mx = 0.01; // placeholder, msBar uses local mx in renderTable
+  return `
+    <td class="c">${divBadge(r.dividends)}</td>
+    <td class="c">${stratBadge(r.strategy)}</td>
+    <td class="c"><span class="cur">${r.currency||'—'}</span></td>
+    <td class="r">${msBar(r.ms_adj_val, _mxMs)}</td>
+    <td class="r">${pct(r.ms_raw_pct,1)}</td>
+    <td class="r">${pct(r.r1m_pln_pct)}</td>
+    <td class="r">${pct(r.r3m_pln_pct)}</td>
+    <td class="r">${pct(r.r6m_pln_pct)}</td>
+    <td class="r">${pct(r.r12m_pln_pct)}</td>
+    <td class="r">${pct(r.r12m_skip1m_pln_pct)}</td>
+    <td class="r">${nd(r.mdd12m_pct,'%',1)}</td>
+    <td class="r">${nd(r.vol_pct,'%',1)}</td>
+    <td class="r">${nd(r.ter!=null?r.ter*100:null,'%',2)}</td>
+    <td class="r">${r.aum_mln!=null?Math.round(r.aum_mln).toLocaleString('pl'):'<span class="nd">—</span>'}
+    </td>`;
+}
+let _mxMs = 0.01; // updated before each table render
+
+function renderTable(){
+  const tbody=$('tbody');
+  let rows=[...getVisible()].sort((a,b)=>{
+    let va=a[sortCol],vb=b[sortCol];
+    if(va==null)return 1; if(vb==null)return -1;
+    if(typeof va==='string') return va.localeCompare(vb)*sortDir;
+    return (va-vb)*sortDir;
+  });
+  if(!rows.length){
+    $('emptyRank').style.display='block'; tbody.innerHTML=''; $('rowCnt').textContent='0'; return;
+  }
+  $('emptyRank').style.display='none';
+  $('rowCnt').textContent=rows.length;
+  _mxMs=Math.max(...rows.map(r=>Math.abs(r.ms_adj_val??0)),.01);
+  tbody.innerHTML=rows.map(r=>`
+    <tr class="${rowCls(r)}" data-isin="${r.isin}">
+      <td><span style="font-size:9px;color:var(--muted);font-weight:600">${r.rank_pos??'—'}</span></td>
+      <td>${etfCell(r)}</td>
+      <td><span style="font-family:var(--mono);font-size:9px;color:var(--dim)">${r.isin||'—'}</span></td>
+      ${renderCols(r)}
+      <td class="c">${actionBtns(r)}</td>
+    </tr>`).join('');
+}
+
+async function toggleGrp(e, encKey, repIsin){
+  e.stopPropagation();
+  const tr=document.querySelector(`tr[data-isin="${repIsin}"]`); if(!tr) return;
+  const nxt=tr.nextElementSibling;
+  if(nxt?.classList.contains('gd')){
+    nxt.remove(); openGroups.delete(repIsin);
+    tr.querySelector('.gbadge')?.classList.remove('open'); return;
+  }
+  openGroups.set(repIsin, decodeURIComponent(encKey));
+  tr.querySelector('.gbadge')?.classList.add('open');
+  insertGrpDetail(tr, encKey, repIsin);
+}
+
+async function insertGrpDetail(tr, encKey, repIsin){
+  const ph=document.createElement('tr');
+  ph.className='gd';
+  ph.innerHTML=`<td colspan="16"><div class="gd-inner" style="padding:8px 14px;color:var(--muted);font-size:9px">Ładuję…</div></td>`;
+  tr.insertAdjacentElement('afterend',ph);
+  try{
+    const json=await fetch(`/api/group/${encKey}`).then(r=>r.json());
+    if(!json.ok) throw new Error(json.error);
+    ph.innerHTML=buildGrpHtml(json.data, repIsin, decodeURIComponent(encKey));
+  }catch(err){
+    ph.innerHTML=`<td colspan="16"><div class="gd-inner" style="padding:8px 14px;color:var(--red);font-size:9px">Błąd: ${err.message}</div></td>`;
+  }
+}
+
+function buildGrpHtml(members, repIsin, gk){
+  const encKey=encodeURIComponent(gk);
+  const others=members.filter(m=>m.isin!==repIsin);
+  if(!others.length)
+    return `<td colspan="18"><div class="gd-inner" style="padding:8px 14px;color:var(--muted);font-size:9px">Brak alternatyw</div></td>`;
+  const gs = grpSort.get(repIsin) || {col:'ms_adj_val', dir:-1};
+  const sorted = sortRows(others, gs.col, gs.dir);
+  const rows = sorted.map(m=>{
+    const ownCls=m.owned?' active':'';
+    const ignBtn=m.ignored
+      ?`<button class="abtn res" title="Przywróć" onclick="restoreEtf('${m.isin}');event.stopPropagation()">↩</button>`
+      :`<button class="abtn ign" title="Ignoruj"  onclick="ignoreEtf('${m.isin}');event.stopPropagation()">⊘</button>`;
+    return `<tr class="${m.owned?'rOWNED':''}">
+      <td><span style="font-size:9px;color:var(--muted);font-weight:600">—</span></td>
+      <td><div class="etf-cell">
+        <div class="etf-ticker-row">
+          ${m.owned?'<span class="owned-star">★</span>':''}
+          <span class="ticker">${m.ticker||'—'}</span>
+          ${m.ignored?'<span class="bdg" style="font-size:7px;background:rgba(244,185,66,.06);color:var(--amber);border:1px solid rgba(244,185,66,.15)">IGN</span>':''}
+        </div>
+        <div class="etf-name" style="max-width:240px">${escHtml(m.name||'')}</div>
+      </div></td>
+      <td><span style="font-family:var(--mono);font-size:9px;color:var(--dim)">${m.isin}</span></td>
+      ${renderCols(m)}
+      <td class="c" style="white-space:nowrap">
+        <span style="display:flex;gap:2px;justify-content:center">
+          <a class="abtn" href="${justetfUrl(m.isin)}" target="_blank" title="JustETF" onclick="event.stopPropagation()" style="font-size:9px;padding:2px 4px;border:1px solid var(--border);border-radius:3px;color:var(--muted);text-decoration:none;background:transparent" onmouseover="this.style.color='var(--blue)';this.style.borderColor='rgba(77,159,255,.4)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">J</a>
+          <a class="abtn" href="${atlasUrl(m.isin)}" target="_blank" title="AtlasETF" onclick="event.stopPropagation()"
+             style="font-size:9px;padding:2px 4px;border:1px solid var(--border);border-radius:3px;
+               color:var(--muted);text-decoration:none;background:transparent"
+             onmouseover="this.style.color='var(--blue)';this.style.borderColor='rgba(77,159,255,.4)'"
+             onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">A</a>
+          <button class="abtn own${ownCls}" title="${m.owned?'Usuń':'Oznacz'}"
+            onclick="toggleOwned('${m.isin}',${!!m.owned});event.stopPropagation()">★</button>
+          <button class="abtn rep" title="Ustaw jako główny ETF grupy"
+            onclick="setRep('${encKey}','${m.isin}','${repIsin}');event.stopPropagation()">⇄</button>
+          ${ignBtn}
+        </span>
+      </td>
+    </tr>`;
+  }).join('');
+  const sortedClass = col => col===gs.col ? ` class="sorted${gs.dir===1?' asc':''}"` : '';
+  return `<td colspan="18"><div class="gd-inner" data-rep="${repIsin}" data-enc="${encKey}" data-gk="${escHtml(gk)}"><table>
+    <thead><tr>
+      <th>#</th>
+      <th data-col="name"${sortedClass('name')}>ETF</th>
+      <th data-col="isin"${sortedClass('isin')}>ISIN</th>
+      <th data-col="dividends" class="c"${sortedClass('dividends')}>Div</th>
+      <th data-col="strategy" class="c"${sortedClass('strategy')}>Strat</th>
+      <th data-col="currency" class="c"${sortedClass('currency')}>Waluta</th>
+      <th data-col="ms_adj_val" class="r"${sortedClass('ms_adj_val')}>MS_adj</th>
+      <th data-col="ms_raw_pct" class="r"${sortedClass('ms_raw_pct')}>MS%</th>
+      <th data-col="r1m_pln_pct" class="r"${sortedClass('r1m_pln_pct')}>1M PLN</th>
+      <th data-col="r3m_pln_pct" class="r"${sortedClass('r3m_pln_pct')}>3M PLN</th>
+      <th data-col="r6m_pln_pct" class="r"${sortedClass('r6m_pln_pct')}>6M PLN</th>
+      <th data-col="r12m_pln_pct" class="r"${sortedClass('r12m_pln_pct')}>12M PLN</th>
+      <th data-col="r12m_skip1m_pln_pct" class="r"${sortedClass('r12m_skip1m_pln_pct')}>12M-1M</th>
+      <th data-col="mdd12m_pct" class="r"${sortedClass('mdd12m_pct')}>MDD%</th>
+      <th data-col="vol_pct" class="r"${sortedClass('vol_pct')}>Vol%</th>
+      <th data-col="ter" class="r"${sortedClass('ter')}>TER%</th>
+      <th data-col="aum_mln" class="r"${sortedClass('aum_mln')}>AuM mln€</th>
+      <th class="ns c">Akcje</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div></td>`;
+}
+
+async function ignoreEtf(isin){
+  try{
+    toast('Ignoruję…','info',4000);
+    const j=await fetch(`/api/ignore/${isin}`,{method:'POST'}).then(r=>r.json());
+    if(!j.ok) throw new Error(j.error);
+    toast(`Zignorowano. Aktywnych: ${j.rankingCount}`,'ok');
+    openGroups.clear(); await fetchRanking(); fetchIgnCnt();
+  }catch(e){ toast(`Błąd: ${e.message}`,'err'); }
+}
+async function restoreEtf(isin){
+  try{
+    toast('Przywracam…','info',4000);
+    const j=await fetch(`/api/ignore/${isin}`,{method:'DELETE'}).then(r=>r.json());
+    if(!j.ok) throw new Error(j.error);
+    toast(`Przywrócono. Aktywnych: ${j.rankingCount}`,'ok');
+    openGroups.clear(); await fetchRanking(); fetchIgnCnt();
+    if(activeTab==='ignored') loadIgnPage();
+  }catch(e){ toast(`Błąd: ${e.message}`,'err'); }
+}
+async function toggleOwned(isin, isOwned){
+  try{
+    const j=await fetch(`/api/owned/${isin}`,{method:isOwned?'DELETE':'POST'}).then(r=>r.json());
+    if(!j.ok) throw new Error(j.error);
+    toast(isOwned?'Usunięto z posiadanych':'★ Oznaczono jako posiadane', isOwned?'ok':'gold');
+    await fetchRanking(); fetchOwnCnt();
+  }catch(e){ toast(`Błąd: ${e.message}`,'err'); }
+}
+async function clearRep(encKey, oldRepIsin){
+  try{
+    toast('Resetuję przypięcie…','info',4000);
+    openGroups.delete(oldRepIsin);
+    const gdRow=document.querySelector(`tr[data-isin="${oldRepIsin}"]`)?.nextElementSibling;
+    if(gdRow?.classList.contains('gd')) gdRow.remove();
+    const j=await fetch(`/api/group/${encKey}/rep`,{method:'DELETE'}).then(r=>r.json());
+    if(!j.ok) throw new Error(j.error);
+    toast('Przypięcie usunięte — wrócono do domyślnego','ok');
+    await fetchRanking();
+  }catch(e){ toast(`Błąd: ${e.message}`,'err'); }
+}
+async function setRep(encKey, newIsin, oldRepIsin){
+  try{
+    toast('Ustawiam reprezentanta…','info',4000);
+    openGroups.delete(oldRepIsin);
+    const gdRow=document.querySelector(`tr[data-isin="${oldRepIsin}"]`)?.nextElementSibling;
+    if(gdRow?.classList.contains('gd')) gdRow.remove();
+    const j=await fetch(`/api/group/${encKey}/rep`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({isin:newIsin})
+    }).then(r=>r.json());
+    if(!j.ok) throw new Error(j.error);
+    toast('Reprezentant zmieniony','ok');
+    await fetchRanking();
+    const newTr=document.querySelector(`tr[data-isin="${newIsin}"]`);
+    if(newTr){
+      openGroups.set(newIsin, decodeURIComponent(encKey));
+      newTr.querySelector('.gbadge')?.classList.add('open');
+      insertGrpDetail(newTr, encKey, newIsin);
+    }
+  }catch(e){ toast(`Błąd: ${e.message}`,'err'); }
+}
+
+async function fetchRanking(){
+  try{
+    const json=await fetch('/api/ranking').then(r=>r.json());
+    if(!json.ok) throw new Error(json.error);
+    allData=json.data||[]; meta=json.meta||{};
+    buildGroupFilters(); renderTable();
+    $('emptyRank').style.display=allData.length===0?'block':'none';
+  }catch(e){ console.error('fetchRanking:',e); }
+}
+async function fetchIgnCnt(){
+  try{
+    const j=await fetch('/api/ignored').then(r=>r.json());
+    if(j.ok) $('ignCnt').textContent=j.data?.length??0;
+  }catch(_){}
+}
+async function fetchOwnCnt(){
+  try{
+    const j=await fetch('/api/owned').then(r=>r.json());
+    if(j.ok) $('ownCnt').textContent=j.data?.length??0;
+  }catch(_){}
+}
+function renderOwnBody(){
+  const rows = sortRows(ownData, ownSort.col, ownSort.dir);
+  _mxMs = Math.max(...rows.map(r=>Math.abs(r.ms_adj_val??0)), .01);
+  $('ownBody').innerHTML = rows.map(r=>{
+    const since=r.bought_at?new Date(r.bought_at).toLocaleString('pl-PL',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
+    return `<tr class="rOWNED">
+      <td><span style="font-size:9px;color:var(--muted);font-weight:600">${r.rank_pos??'—'}</span></td>
+      <td><div class="etf-cell">
+        <div class="etf-ticker-row"><span class="owned-star">★</span><span class="ticker">${r.ticker||'—'}</span></div>
+        <div class="etf-name" style="max-width:280px">${escHtml(r.name||r.isin)}</div>
+        ${r.group_key?`<div style="color:var(--muted);font-size:8px;margin-top:1px">${escHtml(r.group_key)}</div>`:''}
+      </div></td>
+      <td><span style="font-family:var(--mono);font-size:9px;color:var(--dim)">${r.isin}</span></td>
+      ${renderCols(r)}
+      <td style="color:var(--muted);font-size:9px">${since}</td>
+      <td class="c"><span style="display:flex;gap:3px;justify-content:center">
+        <a class="abtn" href="${justetfUrl(r.isin)}" target="_blank" title="JustETF"
+           style="font-size:9px;padding:2px 4px;border:1px solid var(--border);border-radius:3px;
+             color:var(--muted);text-decoration:none;background:transparent"
+           onmouseover="this.style.color='var(--blue)';this.style.borderColor='rgba(77,159,255,.4)'"
+           onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">J</a>
+        <a class="abtn" href="${atlasUrl(r.isin)}" target="_blank" title="AtlasETF"
+           style="font-size:9px;padding:2px 4px;border:1px solid var(--border);border-radius:3px;
+             color:var(--muted);text-decoration:none;background:transparent"
+           onmouseover="this.style.color='var(--blue)';this.style.borderColor='rgba(77,159,255,.4)'"
+           onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">A</a>
+        <button class="abtn own active" title="Usuń z posiadanych"
+          onclick="removeOwnedFromPage('${r.isin}')">★</button>
+      </span></td>
+    </tr>`;
+  }).join('');
+  markSort($('ownTbl'), ownSort.col, ownSort.dir);
+}
+async function loadOwnPage(){
+  try{
+    const j=await fetch('/api/owned').then(r=>r.json());
+    if(!j.ok) return;
+    ownData=j.data||[];
+    $('ownTotal').textContent=ownData.length; $('ownCnt').textContent=ownData.length;
+    if(!ownData.length){ $('emptyOwn').style.display='block'; $('ownWrap').style.display='none'; return; }
+    $('emptyOwn').style.display='none'; $('ownWrap').style.display='';
+    renderOwnBody();
+  }catch(e){ console.error('loadOwnPage:',e); }
+}
+async function removeOwnedFromPage(isin){
+  try{
+    const j=await fetch(`/api/owned/${isin}`,{method:'DELETE'}).then(r=>r.json());
+    if(!j.ok) throw new Error(j.error);
+    toast('Usunięto z posiadanych','ok');
+    await fetchRanking(); fetchOwnCnt(); loadOwnPage();
+  }catch(e){ toast(`Błąd: ${e.message}`,'err'); }
+}
+async function fetchStatus(){
+  try{
+    const j=await fetch('/api/status').then(r=>r.json());
+    if(!j.ok) return;
+    const dot=$('dot'),btn=$('btnRef');
+    if(j.isRunning){
+      dot.className='dot running'; btn.disabled=true; btn.classList.add('spinning');
+      if(!pollTimer) pollTimer=setInterval(async()=>{
+        const s=await fetch('/api/status').then(r=>r.json());
+        if(!s.isRunning){
+          clearInterval(pollTimer); pollTimer=null;
+          btn.disabled=false; btn.classList.remove('spinning');
+          prog(100); await fetchRanking(); await fetchIgnCnt();
+          toast('Dane zaktualizowane!','ok');
+        }
+      },2000);
+    }else{
+      dot.className='dot '+(j.lastRunResult?.status==='error'?'error':'ok');
+      btn.disabled=false; btn.classList.remove('spinning');
+    }
+    if(j.rankingComputedAt){
+      const d=new Date(j.rankingComputedAt);
+      $('ts').textContent=d.toLocaleString('pl-PL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    }
+  }catch(e){ console.error('fetchStatus:',e); }
+}
+function renderIgnBody(){
+  const rows = sortRows(ignData, ignSort.col, ignSort.dir);
+  _mxMs = Math.max(...rows.map(r=>Math.abs(r.ms_adj_val??0)), .01);
+  $('ignBody').innerHTML = rows.map(r=>{
+    const since=r.ignored_at?new Date(r.ignored_at).toLocaleString('pl-PL',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
+    return `<tr>
+      <td><span style="font-size:9px;color:var(--muted);font-weight:600">${r.rank_pos??'—'}</span></td>
+      <td><div class="etf-cell">
+        <div class="etf-ticker-row">${r.owned?'<span class="owned-star">★</span>':''}<span class="ticker">${r.ticker||'—'}</span></div>
+        <div class="etf-name" style="max-width:280px">${escHtml(r.name||r.isin)}</div>
+        ${r.group_key?`<div style="color:var(--muted);font-size:8px;margin-top:1px">${escHtml(r.group_key)}</div>`:''}
+      </div></td>
+      <td><span style="font-family:var(--mono);font-size:9px;color:var(--dim)">${r.isin}</span></td>
+      ${renderCols(r)}
+      <td style="color:var(--muted);font-size:9px">${since}</td>
+      <td class="c"><span style="display:flex;gap:3px;justify-content:center">
+        <a class="abtn" href="${justetfUrl(r.isin)}" target="_blank" title="JustETF" style="font-size:9px;padding:2px 4px;border:1px solid var(--border);border-radius:3px;color:var(--muted);text-decoration:none;background:transparent" onmouseover="this.style.color='var(--blue)';this.style.borderColor='rgba(77,159,255,.4)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">J</a>
+        <a class="abtn" href="${atlasUrl(r.isin)}" target="_blank" title="AtlasETF"
+           style="font-size:9px;padding:2px 4px;border:1px solid var(--border);border-radius:3px;
+             color:var(--muted);text-decoration:none;background:transparent"
+           onmouseover="this.style.color='var(--blue)';this.style.borderColor='rgba(77,159,255,.4)'"
+           onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">A</a>
+        <button class="abtn res" title="Przywróć" onclick="restoreEtf('${r.isin}')">↩</button>
+      </span></td>
+    </tr>`;
+  }).join('');
+  markSort($('ignTbl'), ignSort.col, ignSort.dir);
+}
+async function loadIgnPage(){
+  try{
+    const j=await fetch('/api/ignored').then(r=>r.json());
+    if(!j.ok) return;
+    ignData=j.data||[];
+    $('ignTotal').textContent=ignData.length; $('ignCnt').textContent=ignData.length;
+    if(!ignData.length){ $('emptyIgn').style.display='block'; $('ignWrap').style.display='none'; return; }
+    $('emptyIgn').style.display='none'; $('ignWrap').style.display='';
+    renderIgnBody();
+  }catch(e){ console.error('loadIgnPage:',e); }
+}
+
+// ── Sort handlers ─────────────────────────────────────────────────────────────
+// Main ranking table
+attachSort($('tbl'),
+  ()=>({col:sortCol, dir:sortDir}),
+  s=>{ sortCol=s.col; sortDir=s.dir; },
+  renderTable
+);
+
+// Owned table
+attachSort($('ownTbl'),
+  ()=>ownSort,
+  s=>{ ownSort=s; },
+  renderOwnBody
+);
+
+// Ignored table
+attachSort($('ignTbl'),
+  ()=>ignSort,
+  s=>{ ignSort=s; },
+  renderIgnBody
+);
+
+// Group detail — delegated via tbody of main table (gd rows bubble up)
+$('tbl').addEventListener('click', e=>{
+  const th=e.target.closest('.gd-inner thead th[data-col]'); if(!th) return;
+  e.stopPropagation();
+  const inner=th.closest('.gd-inner');
+  const repIsin=inner.dataset.rep;
+  const encKey=inner.dataset.enc;
+  const gk=inner.dataset.gk;
+  const col=th.dataset.col;
+  const cur=grpSort.get(repIsin)||{col:'ms_adj_val',dir:-1};
+  const dir=cur.col===col ? cur.dir*-1 : defaultDir(col);
+  grpSort.set(repIsin, {col, dir});
+  // Re-fetch cached data and re-render in place
+  fetch(`/api/group/${encKey}`).then(r=>r.json()).then(json=>{
+    if(!json.ok) return;
+    const gdTd=inner.closest('td');
+    gdTd.outerHTML=buildGrpHtml(json.data, repIsin, gk);
+  });
+});
+$('btnRef').addEventListener('click',async()=>{
+  try{
+    $('btnRef').disabled=true; prog(10);
+    const r=await fetch('/api/refresh',{method:'POST'});
+    const j=await r.json();
+    if(r.status===409){ toast('Aktualizacja już trwa…','info'); $('btnRef').disabled=false; return; }
+    if(!j.ok) throw new Error(j.error);
+    prog(20); toast('Aktualizacja uruchomiona…','ok'); await fetchStatus();
+  }catch(e){ toast(`Błąd: ${e.message}`,'err'); $('btnRef').disabled=false; prog(0); }
+});
+
+async function init(){
+  await fetchRanking(); await fetchStatus(); await fetchIgnCnt(); await fetchOwnCnt();
+  markSort($('tbl'), sortCol, sortDir);
+  markSort($('ownTbl'), ownSort.col, ownSort.dir);
+  markSort($('ignTbl'), ignSort.col, ignSort.dir);
+  setInterval(fetchStatus,60_000);
+}
+init();
+</script>
+</body>
+</html>

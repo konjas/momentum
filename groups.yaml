@@ -1,0 +1,686 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Reguły grupowania ETFów
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# Każda reguła testowana jest (w kolejności) na OCZYSZCZONEJ nazwie ETFa:
+#   - zamieniona na małe litery
+#   - usunięty prefix dostawcy (iShares, Xtrackers, ...)
+#   - usunięty suffix 'UCITS ETF ...', 'ETC', 'ETN'
+#
+# Pierwsza pasująca reguła wygrywa.
+# Jeśli żadna nie pasuje → fallback: asset_class:cleaned_name (stara logika)
+#
+# Format każdej reguły:
+#   - pattern: <regex>        # dopasowany do oczyszczonej nazwy (case-insensitive)
+#     group:   <string>       # klucz grupy (zwięzły, po angielsku, małe litery)
+#     sources: <list>         # źródła, których dotyczy reguła, np. [justetf, atlasetf]
+#     types:   <list>         # asset-class z justETF lub atlasETF
+#     # opcjonalny komentarz
+#
+# Kolejność ma znaczenie — bardziej szczegółowe reguły umieszczaj wyżej!
+# ═══════════════════════════════════════════════════════════════════════════════
+
+rules:
+
+  # ── Rynek pieniężny i obligacje ───────────────────────────────────────────────────────────
+  - pattern: 'ultra.?short|short.?(maturity|duration)|\b[0-1]-[1-6] ?m|(\b[0-1]-| )[1-6] ?m'
+    types:
+      - Bonds
+      - Obligacje
+      - Money Market
+    group:   'bonds: ultrashort'
+
+  - pattern: 'money market|overnight|cash'
+    types:
+      - Bonds
+      - Money Market
+    group:   'bonds: money market'
+
+  - pattern: 'high yield|junk bond'
+    types:
+      - Bonds
+      - Obligacje
+    group:   'bonds: high-yield'
+
+  - pattern: 'convertible (bond|note)'
+    types:
+      - Bonds
+      - Obligacje
+    group:   'bonds: convertible'
+
+  - pattern: 'inflation.?linked|tips\b|linker'
+    types:
+      - Bonds
+      - Obligacje
+    group:   'bonds: inflation-linked'
+
+  - pattern: '.*'
+    types:
+      - Bonds
+      - Obligacje
+    group:   'bonds: other'
+
+  - pattern: '.*'
+    types:
+      - Money Market
+    group:   'bonds: money market'
+
+  # ── Finanse i krypto ───────────────────────────────────────────────────────
+  - pattern: 'financ|banking\b|banks\b|fintech|insurance|private.equity|transaction|payment'
+    types:
+      - Equity
+    group:   'sectors: financials'
+
+  - pattern: 'blockchain|web 3\.0|(bitcoin|crypto).*(equity|equities)'
+    types:
+      - Equity
+    group:   'sectors: blockchain'
+
+  - pattern: 'bitcoin.*ethereum|bitcoin suisse digital asset blue chip'
+    types:
+      - Cryptocurrencies
+    group:   'crypto: broad'
+
+  - pattern: 'bitcoin (cash|gold)'
+    types:
+      - Cryptocurrencies
+    group:   'crypto: altcoin'
+
+  - pattern: 'bitcoin\b|btc\b'
+    sources:
+      - atlasetf
+    types:
+      - Inne
+    group:   'crypto: bitcoin'
+
+  - pattern: 'bitcoin\b|btc\b'
+    types:
+      - Cryptocurrencies
+    group:   'crypto: bitcoin'
+
+  - pattern: 'ethereum\b|eth\b'
+    types:
+      - Cryptocurrencies
+    group:   'crypto: ethereum'
+
+  - pattern: 'ripple|stellar|cardano|solana|\bsui\b|uniswap|chainlink|polkadot|avalanche|\btron\b|dogecoin|bnb|binance'
+    types:
+      - Cryptocurrencies
+    group:   'crypto: altcoin'
+
+  - pattern: 'xdc|aave|xrp|celestia|polygon|litecoin|algorand|hyperliquid'
+    types:
+      - Cryptocurrencies
+    group:   'crypto: altcoin'
+
+  - pattern: 'staked|staking'
+    types:
+      - Cryptocurrencies
+    group:   'crypto: altcoin'
+
+  - pattern: '.*'
+    types:
+      - Cryptocurrencies
+    group:   'crypto: broad'
+
+  # ── Metale szlachetne ───────────────────────────────────────────
+  - pattern: '.*'
+    types:
+      - Precious Metals
+    group:   'commodities: precious metals'
+
+  - pattern: 'gold|silver|platinum|palladium|rhodium|precious.metal'
+    type:
+      - Equity
+    group:   'commodities: precious metals producers'
+
+  # ── Rolnictwo ───────────────────────────────────────────────────────
+  - pattern: '(?<!\bex-)(?<!ex-agriculture and )(?<!ex-agriculture & )live.?(cattle|stock)'
+    types:
+      - Commodities
+      - Equity
+    group:   'commodities: agriculture'
+
+  - pattern: '(?<!\bex[ -])(forestry|timber|corn|cocoa|soybean|coffee|sugar|grains|wheat|cotton|lean.?hogs)'
+    types:
+      - Commodities
+      - Equity
+    group:   'commodities: agriculture'
+
+  - pattern: '(?<!\bex[ -])(agriculture|agricultural)\b|agri\b|soft commodit|softs'
+    types:
+      - Commodities
+      - Equity
+    group:   'commodities: agriculture'
+
+  - pattern: 'food|agtech|agribusiness'
+    types:
+      - Equity
+    group:   'sectors: food'
+
+  # ── Sektory — zdrowie ─────────────────────────────────────────────────────────
+  - pattern: 'biotech'
+    types:
+      - Equity
+    group:   'sectors: biotechnology'
+
+  - pattern: 'health|health|medicine|pharma|wellness|medical'
+    types:
+      - Equity
+    group:   'sectors: healthcare'
+
+  - pattern: 'genomic|biorevolution'
+    types:
+      - Equity
+    group:   'sectors: genomics'
+
+  - pattern: 'ageing|longevity|demographic|elder'
+    types:
+      - Equity
+    group:   'sectors: ageing & longevity'
+
+  # ── Technologia ─────────────────────────────────────────────────────
+  - pattern: 'information technology|msci tech\b|technology\b|next generation 100|cloud comput|star market 50'
+    types:
+      - Equity
+    group:   'sectors: technology'
+
+  - pattern: 'artificial intelligence|\bai\b'
+    types:
+      - Equity
+    group:   'sectors: ai'
+
+  - pattern: '(?<!\btaiwan[ -])semiconductor'
+    types:
+      - Equity
+    group:   'sectors: semiconductors'
+
+  - pattern: 'robotics|automation|(future|smart) mobility|autonomous|humanoid|embodied'
+    types:
+      - Equity
+    group:   'sectors: robotics'
+
+  - pattern: '(cyber|digital).?security'
+    types:
+      - Equity
+    group:   'sectors: cybersecurity'
+
+  - pattern: 'internet\b|metaverse|digital economy|digitali[sz]ation|e.?commerce'
+    types:
+      - Equity
+    group:   'sectors: internet'
+
+  - pattern: 'data cent(er|re)|digital infrastructure|tower.*reit|cell tower'
+    types:
+      - Equity
+    group:   'sectors: data centers'
+
+  - pattern: 'quantum comput'
+    types:
+      - Equity
+    group:   'sectors: quantum computing'
+
+  - pattern: 'supply chain|logistics'
+    types:
+      - Equity
+    group:   'sectors: logistics'
+
+  # ── Surowce przemysłowe ───────────────────────────────────────────
+  - pattern: 'rare earth|(critical|strategic) metal|energy.*(metal|commodit(y|ies))|disruptive.*material'
+    types:
+      - Commodities
+      - Equity
+    group:   'commodities: critical materials'
+
+  - pattern: 'alumin|copper\b|kupfer|zinc\b|nickel\b|(essential|economy|industrial) metal|industriemetal'
+    types:
+      - Commodities
+      - Equity
+    group:   'commodities: industrial metals'
+
+  # ── Energia & środowisko ───────────────────────────────────────────
+  - pattern: 'uranium|nuclear'
+    types:
+      - Commodities
+      - Equity
+    group:   'commodities: uranium'
+
+  - pattern: 'oil|crude|petroleum|natural gas\b|lng\b|wti|brent|gasoline|erdgas'
+    types:
+      - Commodities
+      - Equity
+    group:   'commodities: energy'
+
+  - pattern: 'energy'
+    types:
+      - Commodities
+    group:   'commodities: energy'
+
+  - pattern: 'solar|(clean|green|wind).?energy|renewable|climate.*change.*solution|(clean|green|climate).?tech|environmental impact 100'
+    types:
+      - Equity
+    group:   'sectors: clean energy'
+
+  - pattern: 'bioenergy|biomass|(sustainable|future|new) energy'
+    types:
+      - Equity
+    group:   'sectors: clean energy'
+
+  - pattern: 'circular economy'
+    types:
+      - Equity
+    group:   'sectors: circular economy'
+
+  - pattern: 'hydrogen|fuel cell|\bh2\b'
+    types:
+      - Equity
+    group:   'sectors: hydrogen'
+
+  - pattern: 'battery|energy storage|lithium'
+    types:
+      - Equity
+      - Commodities
+    group:   'sectors: battery & storage'
+
+  - pattern: 'water\b|water resource|water infrastructure|blue economy'
+    types:
+      - Equity
+    group:   'sectors: water'
+
+  - pattern: 'energy\b|(oil|gas).*(service|exploration|production|sector)'
+    types:
+      - Equity
+    group:   'sectors: energy'
+
+  - pattern: 'eua\b|(?<!low[ -])\bcarbon\b(?!.{0,25}(?:reduc|neutral|free|zero|offset|screen|foot|transit|low|pab|tilted))'
+    types:
+      - Commodities
+      - Equity
+    group:   'commodities: carbon'
+
+  # ── Inne surowce  ───────────────────────────────────────────────────────
+  - pattern: 'mining|miner|materials\b|basic resource'
+    types:
+      - Commodities
+      - Equity
+    group:   'commodities: miners & materials'
+
+  - pattern: 'commodity|commodities|cmci|scarce resource'
+    types:
+      - Commodities
+      - Equity
+    group:   'commodities: broad'
+
+  - pattern: '.*'
+    types:
+      - Commodities
+    group:   'commodities: broad'
+
+  # ── Inne sektory ───────────────────────────────────────────────────────
+  - pattern: 'consumer discretionary|consumer staples|consumer'
+    types:
+      - Equity
+    group:   'sectors: consumer'
+
+  - pattern: 'industrials\b|industrial\b'
+    types:
+      - Equity
+    group:   'sectors: industrials'
+
+  - pattern: 'utilities\b'
+    types:
+      - Equity
+    group:   'sectors: utilities'
+
+  - pattern: '.*'
+    types:
+      - Real Estate
+    group:   'sectors: real estate'
+
+  - pattern: 'nextg\b|next.?g\b|5g\b|next generation.*connect'
+    types:
+      - Equity
+    group:   'sectors: telecom'
+
+  - pattern: 'communication services|telecoms?\b|(tele)?communications'
+    types:
+      - Equity
+    group:   'sectors: telecom'
+
+  - pattern: 'defence|defense'
+    types:
+      - Equity
+    group:   'sectors: defence'
+
+  - pattern: 'space\b|space exploration'
+    types:
+      - Equity
+    group:   'sectors: space'
+
+  - pattern: 'infrastructure|smart grid|smart cit(y|ies)'
+    types:
+      - Equity
+    group:   'sectors: infrastructure'
+
+  - pattern: 'game|e.?sport|entertainment'
+    types:
+      - Equity
+    group:   'sectors: digital entertainment'
+
+  - pattern: 'media|broadcast'
+    types:
+      - Equity
+    group:   'sectors: media'
+
+  # ── APAC ───────────────────────────────────────────
+  - pattern: '\basia\b|far east|apac|pacific'
+    types:
+      - Equity
+    group:   'regions: APAC'
+
+  - pattern: '(?<!\bex[ -])australia\b|asx.?200'
+    types:
+      - Equity
+    group:   'regions: australia'
+
+  - pattern: '(?<!\bex[ -])(china|csi ?a?(300|500)|chinext)\b|hang seng'
+    types:
+      - Equity
+    group:   'regions: china'
+
+  - pattern: '(?<!\bex[ -])hong.?kong'
+    types:
+      - Equity
+    group:   'regions: hong kong'
+
+  - pattern: '(?<!\bex[ -])india\b|nifty.?50'
+    types:
+      - Equity
+    group:   'regions: india'
+
+  - pattern: '(?<!\bex[ -])indonesia\b'
+    types:
+      - Equity
+    group:   'regions: indonesia'
+
+  - pattern: '(?<!\bex[ -])(japan|topix|nikkei)\b'
+    types:
+      - Equity
+    group:   'regions: japan'
+
+  - pattern: '(?<!\bex[ -])(korea|kospi)\b'
+    types:
+      - Equity
+    group:   'regions: korea'
+
+  - pattern: '(?<!\bex[ -])malaysia\b'
+    types:
+      - Equity
+    group:   'regions: malaysia'
+
+  - pattern: '(?<!\bex[ -])philippines'
+    types:
+      - Equity
+    group:   'regions: philippines'
+
+  - pattern: '(?<!\bex[ -])singapore\b'
+    types:
+      - Equity
+    group:   'regions: singapore'
+
+  - pattern: '(?<!\bex[ -])taiwan\b'
+    types:
+      - Equity
+    group:   'regions: taiwan'
+
+  - pattern: '(?<!\bex[ -])thailand\b'
+    types:
+      - Equity
+    group:   'regions: thailand'
+
+  - pattern: '(?<!\bex[ -])vietnam\b'
+    types:
+      - Equity
+    group:   'regions: vietnam'
+
+  # ── EMEA ───────────────────────────────────────────
+  - pattern: 'europe.*middle.east.*africa'
+    types:
+      - Equity
+    group:   'regions: EMEA'
+
+  - pattern: 'middle.east|gcc|gulf'
+    types:
+      - Equity
+    group:   'regions: ME'
+
+  - pattern: '(eastern|south).*europe'
+    types:
+      - Equity
+    group:   'regions: SEE'
+
+  - pattern: '\bemu\b'
+    types:
+      - Equity
+    group:   'regions: EMU'
+
+  - pattern: 'europe|eurozone|european|euro\b'
+    types:
+      - Equity
+    group:   'regions: EU'
+
+  - pattern: '(?<!\bex[ -])africa\b'
+    types:
+      - Equity
+    group:   'regions: AF'
+
+  - pattern: '(?<!\bex[ -])austria\b|\batx\b'
+    types:
+      - Equity
+    group:   'regions: austria'
+
+  - pattern: '(?<!\bex[ -])bulgaria'
+    types:
+      - Equity
+    group:   'regions: bulgaria'
+
+  - pattern: '(?<!\bex[ -])czech'
+    types:
+      - Equity
+    group:   'regions: chech'
+
+  - pattern: '(?<!\bex[ -])croatia'
+    types:
+      - Equity
+    group:   'regions: croatia'
+
+  - pattern: '(?<!\bex[ -])france|\bcac\b'
+    types:
+      - Equity
+    group:   'regions: france'
+
+  - pattern: '(?<!\bex[ -])germany|dax\b|f\.a\.z\.'
+    types:
+      - Equity
+    group:   'regions: germany'
+
+  - pattern: '(?<!\bex[ -])greece\b'
+    types:
+      - Equity
+    group:   'regions: greece'
+
+  - pattern: '(?<!\bex[ -])hungary'
+    types:
+      - Equity
+    group:   'regions: hungary'
+
+  - pattern: '(?<!\bex[ -])italy\b|\bmib\b|italia'
+    types:
+      - Equity
+    group:   'regions: italy'
+
+  - pattern: '(?<!\bex[ -])kuwait'
+    types:
+      - Equity
+    group:   'regions: kuwait'
+
+  - pattern: '(?<!\bex[ -])macedonia'
+    types:
+      - Equity
+    group:   'regions: macedonia'
+
+  - pattern: '(?<!\bex[ -])netherland|aex'
+    types:
+      - Equity
+    group:   'regions: netherland'
+
+  - pattern: 'nordic|omx|stockholm'
+    types:
+      - Equity
+    group:   'regions: nordic'
+
+  - pattern: '(?<!\bex[ -])pakistan'
+    types:
+      - Equity
+    group:   'regions: pakistan'
+
+  - pattern: '(?<!\bex[ -])poland|wig[2-8]0'
+    types:
+      - Equity
+      - Akcje
+    group:   'regions: poland'
+
+  - pattern: 'dywidenda'
+    sources:
+      - atlasetf
+    types:
+      - Akcje
+    group:   'regions: poland'
+
+  - pattern: '(?<!\bex[ -])romania'
+    types:
+      - Equity
+    group:   'regions: romania'
+
+  - pattern: '(?<!\bex[ -])russia\b'
+    types:
+      - Equity
+    group:   'regions: russia'
+
+  - pattern: '(?<!\bex[ -])saudi|tadawul'
+    types:
+      - Equity
+    group:   'regions: saudi-arabia'
+
+  - pattern: '(?<!\bex[ -])serbia|belex15'
+    types:
+      - Equity
+    group:   'regions: serbia'
+
+  - pattern: '(?<!\bex[ -])spain|ibex\b|spanish\b'
+    types:
+      - Equity
+    group:   'regions: spain'
+
+  - pattern: '(?<!\bex[ -])switzerland|smi\b|swiss\b|\bsli\b'
+    types:
+      - Equity
+    group:   'regions: switzerland'
+
+  - pattern: '(?<!\bex[ -])slovakia'
+    types:
+      - Equity
+    group:   'regions: slovakia'
+
+  - pattern: '(?<!\bex[ -])slovenia'
+    types:
+      - Equity
+    group:   'regions: slovenia'
+
+  - pattern: '(?<!\bex[ -])turkey\b|borsa istanbul'
+    types:
+      - Equity
+    group:   'regions: turkey'
+
+  - pattern: '(?<!\bex[ -])\buk\b|united kingdom|ftse.?(100|250|all.share)\b'
+    types:
+      - Equity
+    group:   'regions: uk'
+
+  # ── Inne  ───────────────────────────────────────────────
+  - pattern: '\b(bic|bric|brics)\b'
+    types:
+      - Equity
+    group:   'regions: BRICS'
+
+  - pattern: 'ex[ -]\busa?\b'
+    types:
+      - Equity
+    group:   'markets: ex-US'
+
+  # ── AM ───────────────────────────────────────────
+  - pattern: 's&p.?(500|400|100|(small|mid) ?cap)|\busa?\b|\bu\.s\.|nasdaq.?(100|composite)|dow.?jones|djia|russell [0-9]{4,}'
+    types:
+      - Equity
+      - Akcje
+    group:   'regions: US'
+
+  - pattern: 'north america'
+    types:
+      - Equity
+    group:   'regions: NORAM'
+
+  - pattern: 'latin america|latam'
+    types:
+      - Equity
+    group:   'regions: LATAM'
+
+  - pattern: '(?<!\bex[ -])brazil|bovespa'
+    types:
+      - Equity
+    group:   'regions: brazil'
+
+  - pattern: '(?<!\bex[ -])canada\b|canadian'
+    types:
+      - Equity
+    group:   'regions: canada'
+
+  - pattern: '(?<!\bex[ -])mexico\b'
+    types:
+      - Equity
+    group:   'regions: mexico'
+
+  # ── Rynki ───────────────────────────────────────────────
+  - pattern: 'frontier'
+    types:
+      - Equity
+    group:   'markets: frontier'
+
+  - pattern: 'emerging|msci \bem\b|\bem\b|bric'
+    types:
+      - Equity
+    group:   'markets: emerging'
+
+  - pattern: 'msci world|developed|prime global|global small cap'
+    types:
+      - Equity
+    group:   'markets: developed'
+
+  - pattern: 'acwi|all country|world|(stoxx|msci|esg) global|global.*(equity|quality|sector)|dividend|gerd kommer'
+    types:
+      - Equity
+    group:   'markets: world'
+
+  # ── Inne ───────────────────────────────────────────────────────────────
+  - pattern: 'incomeshares|graniteshares|leverage shares'
+    types:
+      - Equity
+    group:   'others: single shares'
+
+  - pattern: 'multi.asset|portfolio|managed futures|full.cycle inflation|inflation equity|lifestrategy|lifecycle|balanced|allocation|strategy|preferred shares'
+    types:
+      - Equity
+    group:   'others: multi-asset portfolios'
+
+  - pattern: '.*'
+    group:   'others: unclassified'
