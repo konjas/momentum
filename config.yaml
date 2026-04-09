@@ -48,6 +48,11 @@ filters:
   defaultDividends:  []   # Acc | Dist
   defaultCountries:  []   # Ireland | Luxembourg | …
 
+  # ── Filtr brokerów — puste = brak filtra, podaj nazwy: [xtb, bossa] ──────────
+  # Pokazuje tylko ETF-y dostępne u co najmniej jednego z podanych brokerów.
+  defaultBrokers:
+    - xtb
+
   # ── Twarde wykluczenia (zawsze, niezależnie od UI) ────────────────────────────
   excludeIsins: []
   # Przykład:

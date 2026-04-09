@@ -9,18 +9,18 @@ const {
   addOwned, removeOwned, getOwnedIsins, getOwnedList,
   setGroupOverride, clearGroupOverride,
   getEtfsByGroupKey, getEtfByIsin,
+  getAllBrokerIsins, getBrokerUpdates,
 } = require('./database');
 const { computeScores, passesFilters } = require('./ranking');
-const { runFullUpdate, recomputeRankingOnly, startCron, getStatus } = require('./scheduler');
+const { runFullUpdate, runBrokerUpdate, recomputeRankingOnly, startCron, getStatus } = require('./scheduler');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
 const CONFIG_PATH = path.join('/app', 'config.yaml');
 const CONFIG_DEFAULT = {
-  ranking: { topN:20, portfolioPositions:10, absMomentumThreshold:0,
-             weights:{r1m:.15,r3m:.25,r6m:.35,r12m:.25} },
-  filters: { excludeIsins:[] },
+  ranking: { weights:{r1m:.10,r3m:.20,r6m:.45,r12m:.00,r12m_skip1m:.25,mdd12m:.00} },
+  filters: { excludeIsins:[], defaultBrokers:[] },
   scraper: { maxEtfs:10000 },
 };
 
@@ -48,6 +48,15 @@ function enrich(r, cfg) {
   };
 }
 
+/** Dodaje listę brokerów do każdego wiersza na podstawie broker_isins. */
+function addBrokers(rows, brokerIsins) {
+  const brokers = Object.keys(brokerIsins);
+  return rows.map(r => ({
+    ...r,
+    brokers: brokers.filter(b => brokerIsins[b]?.has(r.isin)),
+  }));
+}
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname,'../public')));
 app.use('/api',(q,s,n)=>{ console.log(`[API] ${q.method} ${q.path}`); n(); });
@@ -55,28 +64,26 @@ app.use('/api',(q,s,n)=>{ console.log(`[API] ${q.method} ${q.path}`); n(); });
 // ── GET /api/ranking ──────────────────────────────────────────────────────────
 app.get('/api/ranking', (req,res) => {
   try {
-    const config = loadConfig();
-    const cfg    = config.ranking;
-    const rows   = getRanking();   // już deduplikowany, posortowany
-    const meta   = getRankingMeta();
+    const config      = loadConfig();
+    const rows        = getRanking();
+    const meta        = getRankingMeta();
+    const brokerIsins = getAllBrokerIsins();
     res.json({ ok:true,
-      data: rows.map(r => enrich(r, cfg)),
-      meta: { total:       meta?.total ?? 0,
-              computedAt:  meta?.computed_at ?? null,
-              topN:        cfg.topN,
-              portfolioPositions:   cfg.portfolioPositions,
-              absMomentumThreshold: cfg.absMomentumThreshold,
-              weights:     cfg.weights } });
+      data: addBrokers(rows.map(r => enrich(r, config.ranking)), brokerIsins),
+      meta: { total: meta?.total ?? 0, computedAt: meta?.computed_at ?? null,
+              weights: config.ranking.weights } });
   } catch(err) { console.error('[API] ranking:', err); res.status(500).json({ok:false,error:err.message}); }
 });
 
 // ── GET /api/status ───────────────────────────────────────────────────────────
 app.get('/api/status', (req,res) => {
   try {
-    const { isRunning, lastRunResult } = getStatus();
+    const { isRunning, lastRunResult, isBrokerRunning, lastBrokerResult } = getStatus();
     const meta = getRankingMeta();
-    res.json({ ok:true, isRunning, lastRunResult, lastJob:getLastJob(),
-      rankingComputedAt:meta?.computed_at??null, rankingTotal:meta?.total??0,
+    res.json({ ok:true, isRunning, lastRunResult, isBrokerRunning, lastBrokerResult,
+      lastJob: getLastJob(),
+      rankingComputedAt: meta?.computed_at ?? null,
+      rankingTotal: meta?.total ?? 0,
     });
   } catch(err) { res.status(500).json({ok:false,error:err.message}); }
 });
@@ -95,12 +102,35 @@ app.post('/api/refresh', (req,res) => {
   res.status(202).json({ok:true});
 });
 
+// ── POST /api/refresh-brokers ─────────────────────────────────────────────────
+app.post('/api/refresh-brokers', (req,res) => {
+  const { isBrokerRunning } = getStatus();
+  if (isBrokerRunning) return res.status(409).json({ok:false,error:'Aktualizacja brokerów już trwa'});
+  runBrokerUpdate(loadConfig()).catch(e => console.error('[API] refresh-brokers:', e));
+  res.status(202).json({ok:true});
+});
+
+// ── GET /api/brokers ──────────────────────────────────────────────────────────
+app.get('/api/brokers', (req,res) => {
+  try {
+    const updates     = getBrokerUpdates();
+    const brokerIsins = getAllBrokerIsins();
+    const { isBrokerRunning, lastBrokerResult } = getStatus();
+    res.json({ ok:true,
+      isRunning: isBrokerRunning,
+      lastResult: lastBrokerResult,
+      brokers: updates,
+      counts: Object.fromEntries(
+        Object.entries(brokerIsins).map(([b, s]) => [b, s.size])
+      ),
+    });
+  } catch(err) { res.status(500).json({ok:false,error:err.message}); }
+});
+
 // ── GET /api/config ───────────────────────────────────────────────────────────
 app.get('/api/config', (req,res) => {
-  try {
-    const c = loadConfig();
-    res.json({ ok:true, data:c });
-  } catch(err) { res.status(500).json({ok:false,error:err.message}); }
+  try { res.json({ ok:true, data:loadConfig() }); }
+  catch(err) { res.status(500).json({ok:false,error:err.message}); }
 });
 
 // ── Ignored ───────────────────────────────────────────────────────────────────
@@ -122,17 +152,20 @@ app.delete('/api/ignore/:isin', (req,res) => {
 
 app.get('/api/ignored', (req,res) => {
   try {
-    const config = loadConfig();
-    res.json({ok:true, data:getIgnoredList().map(r => enrich(r, config.ranking))});
+    const config      = loadConfig();
+    const brokerIsins = getAllBrokerIsins();
+    res.json({ok:true,
+      data: addBrokers(getIgnoredList().map(r => enrich(r, config.ranking)), brokerIsins)
+    });
   } catch(err) { res.status(500).json({ok:false,error:err.message}); }
 });
 
 // ── Owned ─────────────────────────────────────────────────────────────────────
 app.get('/api/owned', (req,res) => {
   try {
-    const config = loadConfig();
-    const list   = getOwnedList().map(r => {
-      // Jeśli ETF nie jest repem grupy, ranking nie ma jego zwrotów — przelicz z etfs
+    const config      = loadConfig();
+    const brokerIsins = getAllBrokerIsins();
+    const list = getOwnedList().map(r => {
       if (r.r1m_pln == null && r.r3m_pln == null) {
         const etf = getEtfByIsin(r.isin);
         if (etf) {
@@ -150,7 +183,7 @@ app.get('/api/owned', (req,res) => {
       }
       return enrich(r, config.ranking);
     });
-    res.json({ok:true, data:list});
+    res.json({ok:true, data: addBrokers(list, brokerIsins)});
   } catch(err) { res.status(500).json({ok:false,error:err.message}); }
 });
 
@@ -193,12 +226,14 @@ app.delete('/api/group/:key/rep', (req,res) => {
 // ── GET /api/group/:key ───────────────────────────────────────────────────────
 app.get('/api/group/:key', (req,res) => {
   try {
-    const key     = decodeURIComponent(req.params.key);
-    const config  = loadConfig();
-    const filters = config.filters || {};
-    const igSet   = new Set(getIgnoredIsins());
-    const owSet   = new Set(getOwnedIsins());
-    const scored  = getEtfsByGroupKey(key)
+    const key         = decodeURIComponent(req.params.key);
+    const config      = loadConfig();
+    const filters     = config.filters || {};
+    const igSet       = new Set(getIgnoredIsins());
+    const owSet       = new Set(getOwnedIsins());
+    const brokerIsins = getAllBrokerIsins();
+
+    const scored = getEtfsByGroupKey(key)
       .map(etf => {
         const s = computeScores(etf, config.ranking.weights);
         return {
@@ -208,6 +243,7 @@ app.get('/api/group/:key', (req,res) => {
           domicile_country: etf.domicile_country,
           ignored: igSet.has(etf.isin) ? 1 : 0,
           owned:   owSet.has(etf.isin) ? 1 : 0,
+          brokers: Object.keys(brokerIsins).filter(b => brokerIsins[b]?.has(etf.isin)),
           _s: s,
           ms_adj_val:          s.ms_adj          != null ? +s.ms_adj.toFixed(4)                  : null,
           ms_raw_pct:          s.ms_raw          != null ? +(s.ms_raw          *100).toFixed(2)  : null,
@@ -222,16 +258,17 @@ app.get('/api/group/:key', (req,res) => {
       })
       .filter(e => {
         if (e.ms_adj_val == null) return false;
-        if (e.ignored) return true; // ignorowane pokazujemy zawsze
+        if (e.ignored) return true;
         const etfFields = {
-          aum_mln: e.aum_mln, ter: e.ter,
+          isin: e.isin, aum_mln: e.aum_mln, ter: e.ter,
           strategy: e.strategy, dividends: e.dividends,
           domicile_country: e.domicile_country,
         };
-        return passesFilters(etfFields, e._s, filters);
+        return passesFilters(etfFields, e._s, filters, brokerIsins);
       })
       .map(e => { delete e._s; return e; })
       .sort((a,b) => (b.ms_adj_val??-Infinity) - (a.ms_adj_val??-Infinity));
+
     res.json({ok:true, group_key:key, data:scored});
   } catch(err) { console.error('[API] group:', err); res.status(500).json({ok:false,error:err.message}); }
 });

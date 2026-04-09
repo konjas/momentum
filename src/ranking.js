@@ -1,4 +1,4 @@
-const { getAllEtfs, saveRanking, getIgnoredIsins, getOwnedIsins, getGroupOverrides } = require('./database');
+const { getAllEtfs, saveRanking, getIgnoredIsins, getOwnedIsins, getGroupOverrides, getAllBrokerIsins } = require('./database');
 const { convertReturnToPLN } = require('./nbp');
 const log = (...a) => console.log('[RANKING]', ...a);
 
@@ -37,7 +37,7 @@ function computeScores(etf, weights) {
   };
 
   const tw     = candidates.reduce((s,p) => s + p.w, 0);
-  const ms_raw = candidates.reduce((s,p) => s + p.r * (p.w / tw), 0) * (1 - );
+  const ms_raw = candidates.reduce((s,p) => s + p.r * (p.w / tw), 0);
   const ms_adj = (vol && vol > 0) ? ms_raw / vol : ms_raw;
   return {
     r1m_pln:r1m, r3m_pln:r3m, r6m_pln:r6m, r12m_pln:r12m,
@@ -48,7 +48,13 @@ function computeScores(etf, weights) {
 
 function num(v) { return (v === '' || v == null) ? null : +v; }
 
-function passesFilters(etf, scores, f) {
+/**
+ * @param {object} etf      - pola ETF-a (aum_mln, ter, strategy, dividends, domicile_country)
+ * @param {object} scores   - wyniki computeScores
+ * @param {object} f        - config.filters
+ * @param {object} brokerIsins - mapa { broker → Set<isin> } (może być null/empty)
+ */
+function passesFilters(etf, scores, f, brokerIsins = {}) {
   const minAum  = num(f.defaultMinAumMillions);
   const maxAum  = num(f.defaultMaxAumMillions);
   const minTer  = num(f.defaultMinTer);
@@ -87,18 +93,30 @@ function passesFilters(etf, scores, f) {
   ]) {
     if (excluded.length && etf[field] && excluded.includes(etf[field])) return false;
   }
+
+  // ── Filtr brokerów ────────────────────────────────────────────────────────
+  const requiredBrokers = (f.defaultBrokers ?? []).map(b => b.toLowerCase());
+  if (requiredBrokers.length > 0 && etf.isin) {
+    // ETF musi być dostępny u co najmniej jednego z podanych brokerów
+    const availableAtAny = requiredBrokers.some(broker =>
+      brokerIsins[broker]?.has(etf.isin)
+    );
+    if (!availableAtAny) return false;
+  }
+
   return true;
 }
 
 function computeRanking(config) {
   log('Obliczam ranking...');
-  const etfs       = getAllEtfs();
-  const weights    = config.ranking.weights;
-  const filters    = config.filters || {};
-  const ignoredSet = new Set(getIgnoredIsins());
-  const ownedSet   = new Set(getOwnedIsins());
-  const overrides  = getGroupOverrides();
-  const now        = new Date().toISOString();
+  const etfs        = getAllEtfs();
+  const weights     = config.ranking.weights;
+  const filters     = config.filters || {};
+  const ignoredSet  = new Set(getIgnoredIsins());
+  const ownedSet    = new Set(getOwnedIsins());
+  const overrides   = getGroupOverrides();
+  const brokerIsins = getAllBrokerIsins();  // { broker → Set<isin> }
+  const now         = new Date().toISOString();
 
   // 1. Score + filtruj (ignorowane pomijamy — nie wchodzą do rankingu)
   const allScored = [];
@@ -106,7 +124,7 @@ function computeRanking(config) {
     if (ignoredSet.has(etf.isin)) continue;
     const scores = computeScores(etf, weights);
     if (scores.ms_adj == null && scores.ms_raw == null) continue;
-    if (!passesFilters(etf, scores, filters)) continue;
+    if (!passesFilters({ ...etf }, scores, filters, brokerIsins)) continue;
     allScored.push({
       isin:             etf.isin,
       name:             etf.name,
@@ -134,8 +152,6 @@ function computeRanking(config) {
   for (const e of allScored) groupSizes.set(e.group_key, (groupSizes.get(e.group_key)||0)+1);
 
   // 3. Dedup — jeden rep per grupa
-  //    Override (user wybiera repa ręcznie) > najwyższy MS_adj
-  const overrideGroups = new Set(Object.keys(overrides));
   const groups = new Map();
   for (const e of allScored) {
     const prefIsin = overrides[e.group_key];
@@ -156,6 +172,7 @@ function computeRanking(config) {
     e.rank_pos    = i + 1;
     e.is_override = e._override ? 1 : 0;
     e.computed_at = now;
+    delete e._override;
   });
 
   saveRanking(active);

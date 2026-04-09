@@ -10,7 +10,8 @@ WORKDIR /app
 
 RUN pip3 install --break-system-packages \
     "justetf-scraping @ git+https://github.com/druzsan/justetf-scraping.git" \
-    pandas pyyaml olefile playwright yfinance
+    pandas pyyaml olefile playwright yfinance \
+    beautifulsoup4 pypdf
 
 RUN playwright install --with-deps chromium
 

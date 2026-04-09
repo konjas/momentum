@@ -53,6 +53,19 @@ function initSchema() {
     CREATE TABLE IF NOT EXISTS group_overrides (
       group_key TEXT PRIMARY KEY, rep_isin TEXT NOT NULL, set_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS broker_isins (
+      broker     TEXT NOT NULL,
+      isin       TEXT NOT NULL,
+      fetched_at TEXT NOT NULL,
+      PRIMARY KEY (broker, isin)
+    );
+    CREATE TABLE IF NOT EXISTS broker_updates (
+      broker      TEXT PRIMARY KEY,
+      last_run_at TEXT,
+      status      TEXT,
+      isin_count  INTEGER,
+      error_msg   TEXT
+    );
   `);
 }
 
@@ -84,6 +97,13 @@ function runMigrations() {
     'ALTER TABLE ranking ADD COLUMN r12m_skip1m_pln  REAL',
     'ALTER TABLE ranking ADD COLUMN mdd12m           REAL',
     'ALTER TABLE etfs    ADD COLUMN source           TEXT DEFAULT \'justetf\'',
+    // broker tables (CREATE IF NOT EXISTS handles new installs; alters for upgrades)
+    `CREATE TABLE IF NOT EXISTS broker_isins (
+      broker TEXT NOT NULL, isin TEXT NOT NULL, fetched_at TEXT NOT NULL,
+      PRIMARY KEY (broker, isin))`,
+    `CREATE TABLE IF NOT EXISTS broker_updates (
+      broker TEXT PRIMARY KEY, last_run_at TEXT, status TEXT,
+      isin_count INTEGER, error_msg TEXT)`,
   ];
   for (const sql of alters) { try { getDb().prepare(sql).run(); } catch (_) {} }
 }
@@ -126,6 +146,26 @@ const upsertEtfsBatch = (etfs) => getDb().transaction(rows => rows.forEach(upser
 const getAllEtfs       = () => getDb().prepare('SELECT * FROM etfs').all();
 const getEtfsByGroupKey = (key) => getDb().prepare('SELECT * FROM etfs WHERE group_key=?').all(key);
 const getEtfByIsin      = (isin) => getDb().prepare('SELECT * FROM etfs WHERE isin=?').get(isin);
+
+/**
+ * Usuwa ETF-y danego źródła które zniknęły z danych (np. wycofane z JustETF/GPW).
+ * Nigdy nie usuwa ETF-ów oznaczonych jako posiadane.
+ * @param {string} source - 'justetf' lub 'atlasetf'
+ * @param {string[]} seenIsins - ISINy które były obecne w ostatnim scrape
+ * @returns {number} liczba usuniętych wierszy
+ */
+const cleanupMissingEtfs = (source, seenIsins) => {
+  if (!seenIsins.length) return 0;
+  const d = getDb();
+  const placeholders = seenIsins.map(() => '?').join(',');
+  const result = d.prepare(`
+    DELETE FROM etfs
+    WHERE source = ?
+      AND isin NOT IN (${placeholders})
+      AND isin NOT IN (SELECT isin FROM owned_etfs)
+  `).run(source, ...seenIsins);
+  return result.changes;
+};
 
 // ── Ranking ───────────────────────────────────────────────────────────────────
 
@@ -179,15 +219,13 @@ const addIgnored    = (isin) =>
 const removeIgnored = (isin) => getDb().prepare('DELETE FROM ignored_etfs WHERE isin=?').run(isin);
 const getIgnoredIsins = () => getDb().prepare('SELECT isin FROM ignored_etfs').all().map(r => r.isin);
 
-// Bulletproof: jedno zapytanie per ISIN — brak JOIN failures
 const getIgnoredList = () => {
   const d = getDb();
   const ignored = d.prepare('SELECT isin, ignored_at FROM ignored_etfs ORDER BY ignored_at DESC').all();
-  console.log(`[DB] getIgnoredList: ${ignored.length} ISINów`);
   return ignored.map(({ isin, ignored_at }) => {
     let etf = null, rank = null;
-    try { etf  = d.prepare('SELECT * FROM etfs WHERE isin=?').get(isin); } catch(e) { console.error('[DB] etfs err:', e.message); }
-    try { rank = d.prepare('SELECT * FROM ranking WHERE isin=?').get(isin); } catch(e) { console.error('[DB] ranking err:', e.message); }
+    try { etf  = d.prepare('SELECT * FROM etfs WHERE isin=?').get(isin); } catch(e) {}
+    try { rank = d.prepare('SELECT * FROM ranking WHERE isin=?').get(isin); } catch(e) {}
     return {
       isin, ignored_at,
       name:            rank?.name            ?? etf?.name            ?? null,
@@ -291,12 +329,65 @@ const finishJob  = (id, status, n, err = null) =>
 const getLastJob    = () => getDb().prepare('SELECT * FROM job_log ORDER BY id DESC LIMIT 1').get();
 const getJobHistory = (n = 20) => getDb().prepare('SELECT * FROM job_log ORDER BY id DESC LIMIT ?').all(n);
 
+// ── Broker ISINs ──────────────────────────────────────────────────────────────
+
+/**
+ * Zapisuje listę ISINów dla danego brokera (zastępuje poprzednie dane).
+ * @param {string} broker - np. 'xtb', 'bossa'
+ * @param {string[]} isins
+ */
+const saveBrokerIsins = (broker, isins) => {
+  const d = getDb();
+  const now = new Date().toISOString();
+  d.transaction(() => {
+    d.prepare('DELETE FROM broker_isins WHERE broker=?').run(broker);
+    const ins = d.prepare('INSERT INTO broker_isins(broker,isin,fetched_at) VALUES(?,?,?)');
+    for (const isin of isins) ins.run(broker, isin, now);
+    d.prepare(`INSERT INTO broker_updates(broker,last_run_at,status,isin_count,error_msg)
+      VALUES(?,?,?,?,?) ON CONFLICT(broker) DO UPDATE SET
+      last_run_at=excluded.last_run_at, status=excluded.status,
+      isin_count=excluded.isin_count, error_msg=excluded.error_msg`)
+      .run(broker, now, 'ok', isins.length, null);
+  })();
+};
+
+const saveBrokerError = (broker, errMsg) => {
+  const now = new Date().toISOString();
+  getDb().prepare(`INSERT INTO broker_updates(broker,last_run_at,status,isin_count,error_msg)
+    VALUES(?,?,?,?,?) ON CONFLICT(broker) DO UPDATE SET
+    last_run_at=excluded.last_run_at, status=excluded.status, error_msg=excluded.error_msg`)
+    .run(broker, now, 'error', 0, errMsg);
+};
+
+/** Zwraca Set ISINów dostępnych u danego brokera. */
+const getBrokerIsins = (broker) =>
+  new Set(getDb().prepare('SELECT isin FROM broker_isins WHERE broker=?').all(broker).map(r => r.isin));
+
+/**
+ * Zwraca mapę { broker → Set<isin> } dla wszystkich brokerów.
+ * Ładowana raz per request dla wydajności.
+ */
+const getAllBrokerIsins = () => {
+  const rows = getDb().prepare('SELECT broker, isin FROM broker_isins').all();
+  const map = {};
+  for (const { broker, isin } of rows) {
+    if (!map[broker]) map[broker] = new Set();
+    map[broker].add(isin);
+  }
+  return map;
+};
+
+/** Zwraca status ostatnich aktualizacji brokerów. */
+const getBrokerUpdates = () =>
+  getDb().prepare('SELECT * FROM broker_updates ORDER BY broker').all();
+
 module.exports = {
-  getDb, upsertEtfsBatch, getAllEtfs, getEtfsByGroupKey, getEtfByIsin,
+  getDb, upsertEtfsBatch, getAllEtfs, getEtfsByGroupKey, getEtfByIsin, cleanupMissingEtfs,
   saveRanking, getRanking, getRankingMeta,
   addIgnored, removeIgnored, getIgnoredIsins, getIgnoredList,
   addOwned, removeOwned, getOwnedIsins, getOwnedList,
   setGroupOverride, clearGroupOverride, getGroupOverrides,
   saveFxRate, getFxRate,
   startJob, finishJob, getLastJob, getJobHistory,
+  saveBrokerIsins, saveBrokerError, getBrokerIsins, getAllBrokerIsins, getBrokerUpdates,
 };
