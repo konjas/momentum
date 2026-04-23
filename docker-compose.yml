@@ -12,7 +12,8 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - CRON_SCHEDULE=0 7 * * *   # codziennie o 07:00
+      - CRON_SCHEDULE=0 6 * * *   # codziennie o 06:00
+      - CRON_BROKERS=30 5 1 * *   # 5:30 w pierwszy dzień miesiąca
       - LOG_LEVEL=info
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/status"]

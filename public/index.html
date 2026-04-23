@@ -121,10 +121,11 @@ tbody tr.gd td{padding:0;border-bottom:none}
 ::-webkit-scrollbar-track{background:var(--bg)}
 ::-webkit-scrollbar-thumb{background:var(--dim);border-radius:3px}
 /* ── Broker badges ─────────────────────────────────────────────────────── */
-.broker-tag{display:inline-block;font-size:7px;font-weight:700;padding:1px 4px;border-radius:2px;
+.broker-tag{display:inline-block;font-size:8px;font-weight:400;padding:1px 4px;border-radius:2px;
   letter-spacing:.04em;vertical-align:middle;font-family:var(--mono);white-space:nowrap}
-.broker-xtb  {background:rgba(232,0,45,.12);color:#e8002d;border:1px solid rgba(232,0,45,.3)}
-.broker-bossa{background:rgba(26,94,32,.15);color:#4caf50;border:1px solid rgba(26,94,32,.4)}
+.broker-xtb  {background:rgba(232,0,45,.12) ;color:#e8002d;border:1px solid rgba(232,0,45,.3)}
+.broker-bossa{background:rgba(26,94,32,.15) ;color:#4caf50;border:1px solid rgba(26,94,32,.4)}
+.broker-mbank{background:rgba(232,155,0,.12);color:#e89b00;border:1px solid rgba(232,155,0,.3)}
 .broker-cell{display:flex;flex-direction:column;gap:2px;align-items:center}
 .btn-hdr.broker{border-color:rgba(77,159,255,.3);color:var(--blue)}
 .btn-hdr.broker:hover{border-color:var(--blue);background:rgba(77,159,255,.07)}
@@ -286,7 +287,7 @@ function toast(msg,type='ok',ms=3000){
 }
 function prog(p){$('prog').style.width=p+'%';if(p>=100)setTimeout(()=>{$('prog').style.width='0';},400);}
 function justetfUrl(isin){return `https://www.justetf.com/en/etf-profile.html?isin=${isin}`;}
-function atlasUrl(isin){return `https://atlasetf.pl/etf-details/${isin}/availability`;}
+function atlasUrl(isin){return `https://atlasetf.pl/etf-details/${isin}`;}
 
 const ro=new ResizeObserver(()=>{
   document.documentElement.style.setProperty('--thead-top',$('sticky-top').offsetHeight+'px');
@@ -333,7 +334,7 @@ function msBar(v,mx){
     <div class="mbar"><div class="mfill ${cls}" style="width:${p}%"></div></div></div>`;
 }
 
-const BROKER_LABELS={xtb:'XTB',bossa:'BOSSA'};
+const BROKER_LABELS={xtb:'xtb',bossa:'bossa',mbank:'mBank'};
 function brokerBadges(brokers){
   if(!brokers?.length) return '<span class="nd">—</span>';
   return `<div class="broker-cell">${brokers.map(b=>

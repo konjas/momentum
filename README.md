@@ -98,10 +98,13 @@ flowchart TD
     A([Trigger]) --> B[fetch_brokers.py]
     B --> C[Pobierz stronę XTB\nxtb.com/pl/specyfikacja-instrumentow]
     B --> D[Pobierz stronę BOSSA\nbossa.pl/oferta/rynek-zagraniczny/kid]
-    C --> E[Znajdź link do PDF OMI\nBS4 + regex fallback]
-    D --> F[Znajdź link do PDF\nBS4 + regex fallback]
-    E --> G[Pobierz PDF\nextract_text layout mode]
-    F --> G
+    B --> E[Pobierz stronę mBank\nmdm.pl/bm/etf]
+    C --> CC[Znajdź link do PDF\nBS4 + regex fallback]
+    D --> DD[Znajdź link do PDF\nBS4 + regex fallback]
+    E --> EE[Znajdź link do PDF\nBS4 + regex fallback]
+    CC --> G[Pobierz PDF\nextract_text layout mode]
+    DD --> G
+    EE --> G
     G --> H[Wyciągnij ISINy\nregex ISIN_RE]
     H --> I[Dodaj polskie ETF-y\nsource=atlasetf zawsze dostępne]
     I --> J[saveBrokerIsins\nDELETE + INSERT\ntabela broker_isins]
@@ -121,7 +124,7 @@ sequenceDiagram
     API->>DB: getRanking()
     DB-->>API: rows[]
     API->>Broker: getAllBrokerIsins()
-    Broker-->>API: {xtb: Set, bossa: Set}
+    Broker-->>API: {xtb: Set, bossa: Set, mbank: Set}
     API->>API: enrich() + addBrokers()
     API-->>UI: {data: [...], meta: {...}}
     UI->>UI: renderTable()
@@ -261,7 +264,7 @@ filters:
   defaultStrategies: []         # Wyklucz strategie: [short-leveraged]
   defaultDividends:  []         # Wyklucz politykę: [Dist]
   defaultCountries:  []         # Wyklucz kraje rejestracji
-  defaultBrokers:    []         # Pokaż tylko dostępne u brokerów: [xtb, bossa]
+  defaultBrokers:    []         # Pokaż tylko dostępne u brokerów: [xtb, bossa, mbank]
   excludeIsins: []              # Twarde wykluczenia ISINów
 
 scraper:
@@ -453,7 +456,7 @@ print(json.dumps(scrape_atlas_batch(['PLBETF400025']), indent=2, ensure_ascii=Fa
 
 4. **`public/index.html`** — dodaj w `BROKER_LABELS` i CSS:
    ```js
-   const BROKER_LABELS = { xtb: 'XTB', bossa: 'BOSSA', mójbroker: 'MÓJ' };
+   const BROKER_LABELS = { xtb: 'xtb', bossa: 'bossa', mójbroker: 'MÓJ' };
    ```
    ```css
    .broker-mójbroker { background: rgba(0,100,200,.12); color: #0064c8; border: 1px solid rgba(0,100,200,.3) }

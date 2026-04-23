@@ -48,7 +48,7 @@ filters:
   defaultDividends:  []   # Acc | Dist
   defaultCountries:  []   # Ireland | Luxembourg | …
 
-  # ── Filtr brokerów — puste = brak filtra, podaj nazwy: [xtb, bossa] ──────────
+  # ── Filtr brokerów — puste = brak filtra, podaj nazwy: [xtb, bossa, mbank] ───
   # Pokazuje tylko ETF-y dostępne u co najmniej jednego z podanych brokerów.
   defaultBrokers:
     - xtb
@@ -61,4 +61,4 @@ filters:
 
 scraper:
   # Maksymalna liczba ETFów do pobrania z JustETF
-  maxEtfs: 5000
+  maxEtfs: 10000

@@ -7,12 +7,15 @@ fetch_brokers.py — Pobiera listy dostępnych ETF/ETC/ETN od brokerów
            strona: https://www.xtb.com/pl/specyfikacja-instrumentow/dokumenty
   - BOSSA: PDF "Lista wszystkich instrumentów zagranicznych"
            strona: https://bossa.pl/oferta/rynek-zagraniczny/kid
+  - MBANK: PDF "Lista dostępnych ETF-ów i akcji"
+           strona: https://www.mdm.pl/bm/etf
 
 Polskie ETF-y (source='atlasetf') zawsze dostępne u obu brokerów.
 
 Wynik: NDJSON na stdout
   {"broker": "xtb",   "isin": "IE00B4L5Y983"}
   {"broker": "bossa", "isin": "IE00B4L5Y983"}
+  {"broker": "mbank", "isin": "IE00B4L5Y983"}
 """
 import sys, json, re, io, os, urllib.request
 from datetime import datetime
@@ -181,6 +184,39 @@ def fetch_bossa_isins() -> set[str]:
         print(f"[BOSSA] Błąd: {e}", file=sys.stderr)
         return set()
 
+# ── MBANK ─────────────────────────────────────────────────────────────────────
+
+MBANK_KID_URL = 'https://www.mdm.pl/bm/etf'
+MBANK_KEYWORDS = [
+    'lista dostępnych ETF-ów i akcji',
+    'lista dostępnych',
+    'lista ETF-ów',
+]
+
+def fetch_mbank_isins() -> set[str]:
+    print("[MBANK] Pobieranie strony dokumentów...", file=sys.stderr)
+    try:
+        html = fetch_url(MBANK_KID_URL)
+        pdf_url = find_pdf_href(html, MBANK_KEYWORDS, MBANK_KID_URL)
+        if not pdf_url:
+            print("[MBANK] Nie znaleziono linku do PDF — próba fallback", file=sys.stderr)
+            m = re.search(r'href="([^"]*Lista_dostępnych[^"]*\.pdf)"', html, re.IGNORECASE)
+            if m:
+                pdf_url = m.group(1)
+                if not pdf_url.startswith('http'):
+                    pdf_url = 'https://mdm.pl' + pdf_url
+        if not pdf_url:
+            print("[MBANK] Nie znaleziono linku do PDF", file=sys.stderr)
+            return set()
+        print(f"[MBANK] Pobieranie PDF: {pdf_url}", file=sys.stderr)
+        pdf_data = fetch_url(pdf_url, binary=True)
+        isins = extract_isins_from_pdf(pdf_data)
+        print(f"[MBANK] Znaleziono {len(isins)} ISINów", file=sys.stderr)
+        return isins
+    except Exception as e:
+        print(f"[MBANK] Błąd: {e}", file=sys.stderr)
+        return set()
+
 # ── Polskie ETF-y z bazy ──────────────────────────────────────────────────────
 
 def fetch_pl_isins() -> set[str]:
@@ -204,17 +240,21 @@ def main():
 
     xtb_isins   = fetch_xtb_isins()
     bossa_isins = fetch_bossa_isins()
+    mbank_isins = fetch_mbank_isins()
 
-    # Polskie ETF-y zawsze dostępne u obu brokerów
+    # Polskie ETF-y zawsze dostępne u polskich brokerów
     xtb_isins   = xtb_isins   | pl_isins
     bossa_isins = bossa_isins | pl_isins
+    mbank_isins = mbank_isins | pl_isins
 
     for isin in sorted(xtb_isins):
         print(json.dumps({'broker': 'xtb', 'isin': isin}, ensure_ascii=False))
     for isin in sorted(bossa_isins):
         print(json.dumps({'broker': 'bossa', 'isin': isin}, ensure_ascii=False))
+    for isin in sorted(mbank_isins):
+        print(json.dumps({'broker': 'mbank', 'isin': isin}, ensure_ascii=False))
 
-    print(f"[DONE] XTB: {len(xtb_isins)}, BOSSA: {len(bossa_isins)}", file=sys.stderr)
+    print(f"[DONE] XTB: {len(xtb_isins)}, BOSSA: {len(bossa_isins)}, MBANK: {len(mbank_isins)}", file=sys.stderr)
 
 if __name__ == '__main__':
     main()
