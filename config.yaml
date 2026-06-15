@@ -6,11 +6,11 @@ ranking:
   # Wagi dla MS = w1·R1M + w3·R3M + w6·R6M + w12·R12M + w12s·R(12M-1M) + wmdd·MDD12M
   # Suma aktywnych wag powinna wynosić 1.0 (nieaktywne = 0.0 są normalizowane automatycznie)
   weights:
-    r1m:          0.10 
-    r3m:          0.20 
-    r6m:          0.45 
-    r12m:         0.00 
-    r12m_skip1m:  0.25   # R(t-12,t-1) — zwrot 12M z pominięciem ostatniego miesiąca
+    r1m:          0.25
+    r3m:          0.33
+    r6m:          0.33
+    r12m:         0.09
+    r12m_skip1m:  0.00   # R(t-12,t-1) — zwrot 12M z pominięciem ostatniego miesiąca
     mdd12m:       0.00   # MDD12M — max drawdown 12M (liczba ujemna, naturalnie karze)
 
 filters:

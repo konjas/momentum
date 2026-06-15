@@ -180,25 +180,20 @@ rules:
     group:   'sectors: ageing & longevity'
 
   # ── Technologia ─────────────────────────────────────────────────────
-  - pattern: 'information technology|msci tech\b|technology\b|next generation 100|cloud comput|star market 50'
-    types:
-      - Equity
-    group:   'sectors: technology'
-
   - pattern: 'artificial intelligence|\bai\b'
     types:
       - Equity
-    group:   'sectors: ai'
+    group:   'sectors: AI'
 
   - pattern: '(?<!\btaiwan[ -])semiconductor'
     types:
       - Equity
     group:   'sectors: semiconductors'
 
-  - pattern: 'robotics|automation|(future|smart) mobility|autonomous|humanoid|embodied'
+  - pattern: 'robotics|automation|(future|smart) mobility|autonomous|humanoid|embodied|electric vehicle|\bev\b|driving technology'
     types:
       - Equity
-    group:   'sectors: robotics'
+    group:   'sectors: robotics & EV'
 
   - pattern: '(cyber|digital).?security'
     types:
@@ -224,6 +219,11 @@ rules:
     types:
       - Equity
     group:   'sectors: logistics'
+
+  - pattern: 'information technology|msci tech\b|technology\b|cloud comput|star market 50'
+    types:
+      - Equity
+    group:   'sectors: technology'
 
   # ── Surowce przemysłowe ───────────────────────────────────────────
   - pattern: 'rare earth|(critical|strategic) metal|energy.*(metal|commodit(y|ies))|disruptive.*material'
@@ -347,10 +347,10 @@ rules:
       - Equity
     group:   'sectors: telecom'
 
-  - pattern: 'defence|defense'
+  - pattern: 'defence|defense|aerospace'
     types:
       - Equity
-    group:   'sectors: defence'
+    group:   'sectors: aerospace & defence'
 
   - pattern: 'space\b|space exploration'
     types:
@@ -487,7 +487,7 @@ rules:
   - pattern: '(?<!\bex[ -])czech'
     types:
       - Equity
-    group:   'regions: chech'
+    group:   'regions: czechia'
 
   - pattern: '(?<!\bex[ -])croatia'
     types:
@@ -619,7 +619,13 @@ rules:
     group:   'markets: ex-US'
 
   # ── AM ───────────────────────────────────────────
-  - pattern: 's&p.?(500|400|100|(small|mid) ?cap)|\busa?\b|\bu\.s\.|nasdaq.?(100|composite)|dow.?jones|djia|russell [0-9]{4,}'
+  - pattern: 's&p.?(500|400|100|(small|mid) ?cap)|nasdaq.?(100|composite|next gen|equity)'
+    types:
+      - Equity
+      - Akcje
+    group:   'regions: US'
+
+  - pattern: '\busa?\b|\bu\.s\.|dow.?jones|djia|russell [0-9]{4,}'
     types:
       - Equity
       - Akcje
