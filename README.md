@@ -99,9 +99,11 @@ flowchart TD
     B --> C[Pobierz stronę XTB\nxtb.com/pl/specyfikacja-instrumentow]
     B --> D[Pobierz stronę BOSSA\nbossa.pl/oferta/rynek-zagraniczny/kid]
     B --> E[Pobierz stronę mBank\nmdm.pl/bm/etf]
+    B --> F[Pobierz stronę PKO\nhttps://www.bm.pkobp.pl/oferta/rynki-zagraniczne]
     C --> CC[Znajdź link do PDF\nBS4 + regex fallback]
     D --> DD[Znajdź link do PDF\nBS4 + regex fallback]
     E --> EE[Znajdź link do PDF\nBS4 + regex fallback]
+    F --> FF[Znajdź link do PDF\nBS4 + regex fallback]
     CC --> G[Pobierz PDF\nextract_text layout mode]
     DD --> G
     EE --> G
@@ -124,7 +126,7 @@ sequenceDiagram
     API->>DB: getRanking()
     DB-->>API: rows[]
     API->>Broker: getAllBrokerIsins()
-    Broker-->>API: {xtb: Set, bossa: Set, mbank: Set}
+    Broker-->>API: {xtb: Set, bossa: Set, mbank: Set, pko: Set}
     API->>API: enrich() + addBrokers()
     API-->>UI: {data: [...], meta: {...}}
     UI->>UI: renderTable()
@@ -264,7 +266,7 @@ filters:
   defaultStrategies: []         # Wyklucz strategie: [short-leveraged]
   defaultDividends:  []         # Wyklucz politykę: [Dist]
   defaultCountries:  []         # Wyklucz kraje rejestracji
-  defaultBrokers:    []         # Pokaż tylko dostępne u brokerów: [xtb, bossa, mbank]
+  defaultBrokers:    []         # Pokaż tylko dostępne u brokerów: [xtb, bossa, mbank, pko]
   excludeIsins: []              # Twarde wykluczenia ISINów
 
 scraper:

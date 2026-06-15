@@ -48,7 +48,7 @@ filters:
   defaultDividends:  []   # Acc | Dist
   defaultCountries:  []   # Ireland | Luxembourg | …
 
-  # ── Filtr brokerów — puste = brak filtra, podaj nazwy: [xtb, bossa, mbank] ───
+  # ── Filtr brokerów — puste = brak filtra, podaj nazwy: [xtb, bossa, mbank, pko] ───
   # Pokazuje tylko ETF-y dostępne u co najmniej jednego z podanych brokerów.
   defaultBrokers:
     - xtb

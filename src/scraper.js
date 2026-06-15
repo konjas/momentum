@@ -138,7 +138,7 @@ async function runBrokerScraper() {
   }
 
   // Zapisz błąd dla brokerów które nie zwróciły danych
-  const expectedBrokers = ['xtb', 'bossa', 'mbank'];
+  const expectedBrokers = ['xtb', 'bossa', 'mbank', 'pko'];
   for (const broker of expectedBrokers) {
     if (!brokerData[broker]) {
       saveBrokerError(broker, 'Brak danych z fetch_brokers.py');
